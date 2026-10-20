@@ -148,3 +148,57 @@
     @apply font-sans;
   }
 }
+
+/*
+ * schedule-x on the app's tokens. Its default theme is Material purple, set on :root and .is-dark;
+ * the doubled class outranks both. Our variables already switch with .dark.
+ */
+.sx__calendar-wrapper.sx__calendar-wrapper {
+  --sx-color-primary: var(--primary);
+  --sx-color-on-primary: var(--primary-foreground);
+  --sx-color-primary-container: var(--secondary);
+  --sx-color-on-primary-container: var(--secondary-foreground);
+  --sx-color-surface-tint: var(--primary);
+  --sx-color-secondary: var(--muted-foreground);
+  --sx-color-on-secondary: var(--card);
+  --sx-color-secondary-container: var(--muted);
+  --sx-color-on-secondary-container: var(--foreground);
+  --sx-color-tertiary: var(--muted-foreground);
+  --sx-color-on-tertiary: var(--card);
+  --sx-color-tertiary-container: var(--muted);
+  --sx-color-on-tertiary-container: var(--foreground);
+  --sx-color-background: var(--card);
+  --sx-color-on-background: var(--foreground);
+  --sx-color-surface: var(--card);
+  --sx-color-on-surface: var(--foreground);
+  --sx-color-surface-bright: var(--card);
+  --sx-color-surface-dim: var(--muted);
+  --sx-color-surface-container-low: var(--muted);
+  --sx-color-surface-container: var(--muted);
+  --sx-color-surface-container-high: var(--accent);
+  --sx-color-outline: var(--input);
+  --sx-color-outline-variant: var(--border);
+  --sx-color-neutral: var(--muted-foreground);
+  --sx-rounding-extra-small: var(--radius);
+  --sx-rounding-small: var(--radius);
+  --sx-rounding-extra-large: calc(var(--radius) * 1.8);
+  font-family: var(--font-sans);
+}
+
+/* Week numbers are a hard-coded grey, and purple under .is-dark. */
+.sx__calendar-wrapper.sx__calendar-wrapper
+:is(
+  .sx__calendar-header__week-number,
+  .sx__month-grid-week__week-number,
+  .sx__month-agenda-week__week-number
+) {
+  background-color: var(--muted);
+  color: var(--muted-foreground);
+}
+
+/* The month grid fills its wrapper, so it needs a height; the phone's agenda sizes itself. */
+@media (width >= 48rem) {
+  .sx-react-calendar-wrapper {
+    height: max(40rem, calc(100dvh - 12rem));
+  }
+}

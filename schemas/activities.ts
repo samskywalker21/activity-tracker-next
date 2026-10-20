@@ -1,7 +1,7 @@
 import { z } from 'zod'
 import { ActivityType } from '@/generated/prisma/enums'
 import { dayBounds, parseDateTime, parseDay } from '@/lib/dates'
-import { NOTE_REQUIRED } from '@/lib/rules'
+import { CALENDAR_STATUSES, NOTE_REQUIRED } from '@/lib/rules'
 
 const day = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Choose a date')
 const time = z.string().regex(/^\d{2}:\d{2}$/, 'Enter a time')
@@ -74,6 +74,16 @@ export const commentSchema = z.object({
   body: z.string().trim().min(1, 'Write a comment').max(2000, 'Keep it under 2000 characters'),
 })
 
+/** The calendar's visible window (instants) and its filters. */
+export const calendarRangeSchema = z.object({
+  start: z.date(),
+  end: z.date(),
+  status: z.enum(CALENDAR_STATUSES).optional(),
+  type: z.enum(ActivityType).optional(),
+  section: z.number().int().optional(),
+  division: z.number().int().optional(),
+})
+
 /** The instants a form range stands for: whole days when `allDay`. */
 export function rangeToDates(data: z.infer<typeof range>) {
   if (data.allDay) return dayBounds(parseDay(data.startDate), parseDay(data.endDate))
@@ -87,3 +97,4 @@ export type ActivityInput = z.input<typeof activitySchema>
 export type ConflictCheckInput = z.input<typeof conflictCheckSchema>
 export type StatusChangeInput = z.input<typeof statusChangeSchema>
 export type CommentInput = z.input<typeof commentSchema>
+export type CalendarRangeInput = z.input<typeof calendarRangeSchema>

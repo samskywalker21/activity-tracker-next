@@ -12,6 +12,9 @@ export const REVIEW_DECISIONS = [
   'REJECTED',
 ] as const satisfies ActivityStatus[]
 
+/** What the public calendar shows, to guests and signed-in users alike. */
+export const CALENDAR_STATUSES = ['APPROVED', 'PENDING'] as const satisfies ActivityStatus[]
+
 /** Decisions that must say why (max 2000 characters). */
 export const NOTE_REQUIRED: ActivityStatus[] = ['RETURNED', 'REJECTED', 'CANCELLED']
 

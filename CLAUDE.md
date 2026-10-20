@@ -31,6 +31,10 @@ Formatting is Biome: no semicolons, single quotes, width 100. Run `pnpm format`.
 - Activity lists (`/activities`, `/my-activities`, `/review`, dashboard, CSV export) share
   `lib/activity-list.ts`: the URL filters, `activityWhere()`, the ordering and `toActivityRow()` for
   `ActivitiesTable`.
+- `/calendar` is public (outside `(app)`, excluded in `proxy.ts`). schedule-x is driven from React:
+  the range comes from its callbacks, and an effect fetches `getCalendarRange` (`actions/calendar.ts`)
+  for range + filters and calls `events.set`. Its config is read once, so keep `customComponents`
+  module-level. Clicking an event opens a dialog; only signed-in users get the full page.
 - Server actions are one file per entity in `actions/`; each write and its `audit()` row share
   a transaction, then `revalidatePath`.
 - Who may edit, review or cancel an activity lives only in `lib/rules.ts` (pure, unit-tested);
