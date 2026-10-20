@@ -51,3 +51,20 @@ export function parseDay(day: string) {
 export function formatDay(date: Date) {
   return format(zoned(date), 'yyyy-MM-dd')
 }
+
+/** A `yyyy-MM-dd` day and an `HH:mm` wall-clock time in APP_TIMEZONE, as an instant. */
+export function parseDateTime(day: string, time: string) {
+  const [year, month, date] = day.split('-').map(Number)
+  const [hours, minutes] = time.split(':').map(Number)
+  return new Date(new TZDate(year, month - 1, date, hours, minutes, APP_TIMEZONE).getTime())
+}
+
+/** The `HH:mm` wall-clock time of an instant in APP_TIMEZONE. */
+export function formatTime(date: Date) {
+  return format(zoned(date), 'HH:mm')
+}
+
+/** An instant as `Oct 27, 2026, 1:30 PM` in APP_TIMEZONE. */
+export function formatDateTime(date: Date) {
+  return format(zoned(date), 'MMM d, yyyy, h:mm a')
+}

@@ -30,6 +30,11 @@ Formatting is Biome: no semicolons, single quotes, width 100. Run `pnpm format`.
   Create/edit is a `*Dialog` whose form calls a server action and maps `fieldErrors` onto fields.
 - Server actions are one file per entity in `actions/`; each write and its `audit()` row share
   a transaction, then `revalidatePath`.
+- Who may edit, review or cancel an activity lives only in `lib/rules.ts` (pure, unit-tested);
+  actions enforce it and pages use it to choose which buttons to show. Every status change writes
+  an `ActivityEvent` in the same transaction as its audit row.
+- Activity forms hold days (`yyyy-MM-dd`) and wall-clock times (`HH:mm`) in `APP_TIMEZONE`;
+  `rangeToDates()` in `schemas/activities.ts` turns them into instants on the server.
 
 ## Auth
 

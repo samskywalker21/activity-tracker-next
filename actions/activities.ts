@@ -1,0 +1,216 @@
+'use server'
+
+import { revalidatePath } from 'next/cache'
+import type { Prisma } from '@/generated/prisma/client'
+import { type ActionResult, validationFailed } from '@/lib/action-result'
+import { audit, diff } from '@/lib/audit'
+import type { Conflicts } from '@/lib/conflicts'
+import { db } from '@/lib/db'
+import { allowedTransitions, canEdit, REVIEW_DECISIONS, statusAfterEdit } from '@/lib/rules'
+import { requireUser } from '@/lib/session'
+import {
+  type ActivityInput,
+  activitySchema,
+  conflictCheckSchema,
+  rangeToDates,
+  statusChangeSchema,
+} from '@/schemas/activities'
+
+/** The scalar columns a form submission sets; blank optional text is stored as null. */
+function activityData(input: ActivityInput) {
+  return {
+    title: input.title,
+    type: input.type,
+    virtual: input.virtual,
+    allDay: input.allDay,
+    ...rangeToDates(input),
+    sectionId: input.sectionId,
+    owner: input.owner,
+    venue: input.venue,
+    prNo: input.prNo || null,
+    otherParticipants: input.otherParticipants || null,
+    otherLgu: input.otherLgu || null,
+    otherFacilities: input.otherFacilities || null,
+    remarks: input.remarks || null,
+  }
+}
+
+const pivotIds = {
+  participants: { select: { id: true } },
+  lgus: { select: { id: true } },
+  facilities: { select: { id: true } },
+} satisfies Prisma.ActivityInclude
+
+export async function createActivity(input: unknown): Promise<ActionResult<{ id: number }>> {
+  const user = await requireUser()
+  const parsed = activitySchema.safeParse(input)
+  if (!parsed.success) return validationFailed(parsed.error)
+
+  const { participantIds, lguIds, facilityIds } = parsed.data
+  const data = activityData(parsed.data)
+
+  const activity = await db.$transaction(async (tx) => {
+    const activity = await tx.activity.create({
+      data: {
+        ...data,
+        createdById: user.id,
+        updatedById: user.id,
+        participants: { connect: participantIds.map((id) => ({ id })) },
+        lgus: { connect: lguIds.map((id) => ({ id })) },
+        facilities: { connect: facilityIds.map((id) => ({ id })) },
+        events: { create: { actorId: user.id, fromStatus: null, toStatus: 'PENDING' } },
+      },
+    })
+    await audit(tx, {
+      actorId: user.id,
+      action: 'activity.create',
+      entityType: 'Activity',
+      entityId: activity.id,
+      diff: diff({}, { ...data, status: 'PENDING', participantIds, lguIds, facilityIds }),
+    })
+    return activity
+  })
+
+  revalidatePath('/', 'layout')
+  return { ok: true, data: { id: activity.id } }
+}
+
+export async function updateActivity(id: number, input: unknown): Promise<ActionResult> {
+  const user = await requireUser()
+  const parsed = activitySchema.safeParse(input)
+  if (!parsed.success) return validationFailed(parsed.error)
+
+  const activity = await db.activity.findUnique({ where: { id }, include: pivotIds })
+  if (!activity) return { ok: false, error: 'Activity not found' }
+  if (!canEdit(user, activity)) return { ok: false, error: 'You cannot edit this activity' }
+
+  const { participantIds, lguIds, facilityIds } = parsed.data
+  const data = { ...activityData(parsed.data), status: statusAfterEdit(user, activity) }
+
+  await db.$transaction(async (tx) => {
+    await tx.activity.update({
+      where: { id },
+      data: {
+        ...data,
+        updatedById: user.id,
+        participants: { set: participantIds.map((id) => ({ id })) },
+        lgus: { set: lguIds.map((id) => ({ id })) },
+        facilities: { set: facilityIds.map((id) => ({ id })) },
+      },
+    })
+    if (data.status !== activity.status) {
+      await tx.activityEvent.create({
+        data: {
+          activityId: id,
+          actorId: user.id,
+          fromStatus: activity.status,
+          toStatus: data.status,
+        },
+      })
+    }
+    await audit(tx, {
+      actorId: user.id,
+      action: 'activity.update',
+      entityType: 'Activity',
+      entityId: id,
+      diff: diff(
+        {
+          ...activity,
+          participantIds: activity.participants.map((p) => p.id),
+          lguIds: activity.lgus.map((l) => l.id),
+          facilityIds: activity.facilities.map((f) => f.id),
+        },
+        { ...data, participantIds, lguIds, facilityIds }
+      ),
+    })
+  })
+
+  revalidatePath('/', 'layout')
+  return { ok: true, data: undefined }
+}
+
+export async function changeStatus(id: number, input: unknown): Promise<ActionResult> {
+  const user = await requireUser()
+  const parsed = statusChangeSchema.safeParse(input)
+  if (!parsed.success) return validationFailed(parsed.error)
+
+  const activity = await db.activity.findUnique({ where: { id } })
+  if (!activity) return { ok: false, error: 'Activity not found' }
+
+  const { status, note } = parsed.data
+  if (!allowedTransitions(user, activity).includes(status)) {
+    const review = (REVIEW_DECISIONS as readonly string[]).includes(status)
+    return {
+      ok: false,
+      error:
+        review && activity.status !== 'PENDING'
+          ? 'Only a pending activity can be reviewed'
+          : 'You do not have permission to do that',
+    }
+  }
+
+  await db.$transaction(async (tx) => {
+    await tx.activity.update({ where: { id }, data: { status, updatedById: user.id } })
+    await tx.activityEvent.create({
+      data: {
+        activityId: id,
+        actorId: user.id,
+        fromStatus: activity.status,
+        toStatus: status,
+        note: note || null,
+      },
+    })
+    await audit(tx, {
+      actorId: user.id,
+      action: 'activity.status',
+      entityType: 'Activity',
+      entityId: id,
+      diff: diff(activity, { status }),
+      meta: note ? { note } : undefined,
+    })
+  })
+
+  revalidatePath('/', 'layout')
+  return { ok: true, data: undefined }
+}
+
+/**
+ * What overlaps the range being filled in: a warning for the form, never a block. A bucket whose
+ * selection is empty is `[]` without a query, so "nothing selected" is not "no clash".
+ */
+export async function checkConflicts(input: unknown): Promise<ActionResult<Conflicts>> {
+  await requireUser()
+  const parsed = conflictCheckSchema.safeParse(input)
+  if (!parsed.success) return validationFailed(parsed.error)
+
+  const { id, participantIds, lguIds, facilityIds } = parsed.data
+  const { start, end } = rangeToDates(parsed.data)
+
+  const overlapping: Prisma.ActivityWhereInput = {
+    start: { lte: end },
+    end: { gte: start },
+    // Rejected and cancelled activities are not going to happen, so they cannot clash.
+    status: { notIn: ['REJECTED', 'CANCELLED'] },
+    ...(id !== undefined && { id: { not: id } }),
+  }
+  const find = (shared?: Prisma.ActivityWhereInput) =>
+    db.activity.findMany({
+      where: { ...overlapping, ...shared },
+      select: { id: true, title: true, start: true, end: true, allDay: true, status: true },
+      orderBy: { start: 'asc' },
+    })
+
+  const [date, participants, lgus, facilities, holidays] = await Promise.all([
+    find(),
+    participantIds.length ? find({ participants: { some: { id: { in: participantIds } } } }) : [],
+    lguIds.length ? find({ lgus: { some: { id: { in: lguIds } } } }) : [],
+    facilityIds.length ? find({ facilities: { some: { id: { in: facilityIds } } } }) : [],
+    db.holiday.findMany({
+      where: { start: { lte: end }, end: { gte: start } },
+      select: { id: true, name: true, start: true, end: true },
+      orderBy: { start: 'asc' },
+    }),
+  ])
+
+  return { ok: true, data: { date, participants, lgus, facilities, holidays } }
+}
