@@ -68,3 +68,18 @@ export function formatTime(date: Date) {
 export function formatDateTime(date: Date) {
   return format(zoned(date), 'MMM d, yyyy, h:mm a')
 }
+
+const isDay = (value: string | null | undefined): value is string =>
+  !!value && /^\d{4}-\d{2}-\d{2}$/.test(value)
+
+/**
+ * Whole days `from`–`to` (`yyyy-MM-dd` from the URL, either optional) as a Prisma date filter.
+ * Undefined when neither is a valid day, so bad input is ignored rather than refused.
+ */
+export function dayRangeFilter(from: string | null | undefined, to: string | null | undefined) {
+  if (!isDay(from) && !isDay(to)) return undefined
+  return {
+    ...(isDay(from) && { gte: dayBounds(parseDay(from)).start }),
+    ...(isDay(to) && { lte: dayBounds(parseDay(to)).end }),
+  }
+}

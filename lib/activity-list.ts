@@ -7,7 +7,7 @@ import {
 } from 'nuqs/server'
 import type { Prisma } from '@/generated/prisma/client'
 import { ActivityStatus, ActivityType } from '@/generated/prisma/enums'
-import { dayBounds, formatRange, parseDay } from '@/lib/dates'
+import { dayRangeFilter, formatRange } from '@/lib/dates'
 import { PAGE_SIZE } from '@/lib/search-params'
 
 const day = parseAsString // `yyyy-MM-dd`; anything else is ignored by activityWhere
@@ -37,16 +37,14 @@ export async function loadActivityFilters(
   return { ...params, page, skip: (page - 1) * PAGE_SIZE, take: PAGE_SIZE }
 }
 
-const isDay = (value: string | null | undefined): value is string =>
-  !!value && /^\d{4}-\d{2}-\d{2}$/.test(value)
-
 /**
  * Prisma `where` for the filters. Search covers the title, owner, venue, the creator's names and
  * the section's and division's name and code. `from`/`to` bound the start, in whole days.
  */
 export function activityWhere(filters: Partial<ActivityFilters>): Prisma.ActivityWhereInput {
   const contains = (value: string) => ({ contains: value, mode: 'insensitive' as const })
-  const { q, from, to } = filters
+  const { q } = filters
+  const start = dayRangeFilter(filters.from, filters.to)
 
   return {
     ...(filters.status && { status: filters.status }),
@@ -55,12 +53,7 @@ export function activityWhere(filters: Partial<ActivityFilters>): Prisma.Activit
     ...(filters.section && { sectionId: filters.section }),
     ...(filters.division && { section: { divisionId: filters.division } }),
     ...(filters.createdBy && { createdById: filters.createdBy }),
-    ...((isDay(from) || isDay(to)) && {
-      start: {
-        ...(isDay(from) && { gte: dayBounds(parseDay(from)).start }),
-        ...(isDay(to) && { lte: dayBounds(parseDay(to)).end }),
-      },
-    }),
+    ...(start && { start }),
     ...(q && {
       OR: [
         { title: contains(q) },

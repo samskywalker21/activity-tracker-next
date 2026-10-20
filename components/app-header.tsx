@@ -1,4 +1,5 @@
 import { Search } from 'lucide-react'
+import { NotificationBell } from '@/components/notification-bell'
 import { ThemeToggle } from '@/components/theme-toggle'
 import { Input } from '@/components/ui/input'
 import { SidebarTrigger } from '@/components/ui/sidebar'
@@ -29,6 +30,7 @@ export function AppHeader({
         </form>
       </search>
       <div className="ml-auto flex items-center gap-1">
+        <NotificationBell />
         <ThemeToggle />
         <UserMenu name={name} initials={initials} detail={detail} />
       </div>

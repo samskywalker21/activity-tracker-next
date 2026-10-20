@@ -35,6 +35,9 @@ Formatting is Biome: no semicolons, single quotes, width 100. Run `pnpm format`.
   the range comes from its callbacks, and an effect fetches `getCalendarRange` (`actions/calendar.ts`)
   for range + filters and calls `events.set`. Its config is read once, so keep `customComponents`
   module-level. Clicking an event opens a dialog; only signed-in users get the full page.
+- Notifications are derived, not stored: `eventWhere()` / `commentWhere()` in
+  `actions/notifications.ts` decide who hears of which `ActivityEvent` and `Comment` rows; unread
+  means newer than `user.notificationsSeenAt`. The header's `NotificationBell` polls the count.
 - Server actions are one file per entity in `actions/`; each write and its `audit()` row share
   a transaction, then `revalidatePath`.
 - Who may edit, review or cancel an activity lives only in `lib/rules.ts` (pure, unit-tested);
