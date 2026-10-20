@@ -1,0 +1,265 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum Role {
+  ADMIN
+  MANAGER
+  STAFF
+}
+
+enum ActivityStatus {
+  PENDING
+  APPROVED
+  RETURNED
+  REJECTED
+  CANCELLED
+}
+
+enum ActivityType {
+  EVENT
+  MONITORING
+}
+
+// ---------------------------------------------------------------------------
+// Better Auth tables (core fields + username plugin + our profile fields)
+// ---------------------------------------------------------------------------
+
+model User {
+  id                  String   @id
+  name                String // "First Last", kept in sync on write (Better Auth requires it)
+  email               String   @unique // placeholder `<username>@activity-tracker.local`, never shown
+  emailVerified       Boolean  @default(false)
+  image               String?
+  username            String?  @unique
+  displayUsername     String?
+  firstName           String
+  middleName          String?
+  lastName            String
+  position            String
+  sectionId           Int
+  role                Role     @default(STAFF)
+  isActive            Boolean  @default(true)
+  notificationsSeenAt DateTime @default(now()) @db.Timestamptz
+  createdAt           DateTime @default(now()) @db.Timestamptz
+  updatedAt           DateTime @updatedAt @db.Timestamptz
+
+  section           Section         @relation(fields: [sectionId], references: [id], onDelete: Restrict)
+  sessions          Session[]
+  accounts          Account[]
+  createdActivities Activity[]      @relation("ActivityCreatedBy")
+  updatedActivities Activity[]      @relation("ActivityUpdatedBy")
+  comments          Comment[]
+  activityEvents    ActivityEvent[]
+  auditLogs         AuditLog[]
+}
+
+model Session {
+  id        String   @id
+  expiresAt DateTime @db.Timestamptz
+  token     String   @unique
+  ipAddress String?
+  userAgent String?
+  userId    String
+  createdAt DateTime @default(now()) @db.Timestamptz
+  updatedAt DateTime @updatedAt @db.Timestamptz
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model Account {
+  id                    String    @id
+  accountId             String
+  providerId            String
+  userId                String
+  accessToken           String?
+  refreshToken          String?
+  idToken               String?
+  accessTokenExpiresAt  DateTime? @db.Timestamptz
+  refreshTokenExpiresAt DateTime? @db.Timestamptz
+  scope                 String?
+  password              String?
+  createdAt             DateTime  @default(now()) @db.Timestamptz
+  updatedAt             DateTime  @updatedAt @db.Timestamptz
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model Verification {
+  id         String   @id
+  identifier String
+  value      String
+  expiresAt  DateTime @db.Timestamptz
+  createdAt  DateTime @default(now()) @db.Timestamptz
+  updatedAt  DateTime @updatedAt @db.Timestamptz
+
+  @@index([identifier])
+}
+
+// ---------------------------------------------------------------------------
+// Reference data
+// ---------------------------------------------------------------------------
+
+model Division {
+  id        Int      @id @default(autoincrement())
+  code      String   @unique @db.VarChar(10)
+  name      String
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now()) @db.Timestamptz
+  updatedAt DateTime @updatedAt @db.Timestamptz
+
+  sections Section[]
+}
+
+model Section {
+  id         Int      @id @default(autoincrement())
+  code       String   @unique @db.VarChar(10)
+  name       String
+  divisionId Int
+  isActive   Boolean  @default(true)
+  createdAt  DateTime @default(now()) @db.Timestamptz
+  updatedAt  DateTime @updatedAt @db.Timestamptz
+
+  division   Division   @relation(fields: [divisionId], references: [id], onDelete: Restrict)
+  users      User[]
+  activities Activity[]
+}
+
+model Lgu {
+  id         String  @id // PSGC code
+  provinceId Int
+  province   String
+  muncity    String
+  isActive   Boolean @default(true)
+
+  activities Activity[]
+}
+
+model Participant {
+  id         Int      @id @default(autoincrement())
+  name       String
+  isInternal Boolean
+  isActive   Boolean  @default(true)
+  createdAt  DateTime @default(now()) @db.Timestamptz
+  updatedAt  DateTime @updatedAt @db.Timestamptz
+
+  activities Activity[]
+}
+
+model Facility {
+  id        Int      @id @default(autoincrement())
+  name      String
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now()) @db.Timestamptz
+  updatedAt DateTime @updatedAt @db.Timestamptz
+
+  activities Activity[]
+}
+
+model Holiday {
+  id        Int      @id @default(autoincrement())
+  name      String
+  start     DateTime @db.Timestamptz
+  end       DateTime @db.Timestamptz
+  createdAt DateTime @default(now()) @db.Timestamptz
+  updatedAt DateTime @updatedAt @db.Timestamptz
+
+  @@index([start, end])
+}
+
+// ---------------------------------------------------------------------------
+// Activities
+// ---------------------------------------------------------------------------
+
+model Activity {
+  id                Int            @id @default(autoincrement())
+  title             String
+  type              ActivityType
+  virtual           Boolean        @default(false)
+  allDay            Boolean        @default(false)
+  start             DateTime       @db.Timestamptz
+  end               DateTime       @db.Timestamptz
+  status            ActivityStatus @default(PENDING)
+  owner             String // person responsible, not necessarily the creator
+  venue             String
+  prNo              String? // procurement Purchase Request number
+  remarks           String?
+  others            String?
+  otherParticipants String?
+  otherLgu          String?
+  otherFacilities   String?
+  sectionId         Int
+  createdById       String
+  updatedById       String
+  createdAt         DateTime       @default(now()) @db.Timestamptz
+  updatedAt         DateTime       @updatedAt @db.Timestamptz
+
+  section      Section         @relation(fields: [sectionId], references: [id], onDelete: Restrict)
+  createdBy    User            @relation("ActivityCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
+  updatedBy    User            @relation("ActivityUpdatedBy", fields: [updatedById], references: [id], onDelete: Restrict)
+  participants Participant[]
+  lgus         Lgu[]
+  facilities   Facility[]
+  comments     Comment[]
+  events       ActivityEvent[]
+
+  @@index([status, start, end])
+}
+
+// Append-only, user-facing status history
+model ActivityEvent {
+  id         Int             @id @default(autoincrement())
+  activityId Int
+  actorId    String
+  fromStatus ActivityStatus? // null on creation
+  toStatus   ActivityStatus
+  note       String?
+  createdAt  DateTime        @default(now()) @db.Timestamptz
+
+  activity Activity @relation(fields: [activityId], references: [id], onDelete: Restrict)
+  actor    User     @relation(fields: [actorId], references: [id], onDelete: Restrict)
+
+  @@index([createdAt])
+}
+
+model Comment {
+  id         Int      @id @default(autoincrement())
+  body       String
+  activityId Int
+  authorId   String
+  createdAt  DateTime @default(now()) @db.Timestamptz
+  updatedAt  DateTime @updatedAt @db.Timestamptz
+
+  activity Activity @relation(fields: [activityId], references: [id], onDelete: Restrict)
+  author   User     @relation(fields: [authorId], references: [id], onDelete: Restrict)
+
+  @@index([createdAt])
+}
+
+// Append-only, admin-only. No FK to the entity, only to the actor.
+model AuditLog {
+  id         Int      @id @default(autoincrement())
+  createdAt  DateTime @default(now()) @db.Timestamptz
+  actorId    String? // null for failed sign-in / guest actions
+  action     String // 'activity.create' | 'activity.status' | 'auth.sign_in_failed' | ...
+  entityType String? // 'Activity' | 'Comment' | 'User' | 'Section' | ...
+  entityId   String?
+  diff       Json? // { field: [before, after] }; pivots as sorted id lists
+  meta       Json? // e.g. { username } on a failed sign-in
+  ip         String?
+
+  actor User? @relation(fields: [actorId], references: [id], onDelete: Restrict)
+
+  @@index([createdAt])
+  @@index([entityType, entityId])
+  @@index([actorId])
+}
