@@ -157,33 +157,26 @@ async function main() {
     }
   )
 
-  // The admin belongs to ICTU. Created through Better Auth so the password is hashed by the
-  // same code that verifies it at sign-in.
+  // The admin belongs to ICTU. Created through Better Auth's sign-up so the password is hashed
+  // by the same code that verifies it at sign-in. Only server code may pass `role` / `isActive`
+  // (see lib/auth.ts).
   await seed(
     'admin',
     () => db.user.count(),
     async () => {
       const section = await db.section.findUniqueOrThrow({ where: { code: 'ICTU' } })
-      const ctx = await auth.$context
-      const user = await ctx.internalAdapter.createUser(
-        {
+      await auth.api.signUpEmail({
+        body: {
           name: 'Winter Kim',
           email: placeholderEmail('admin'),
           username: 'admin',
-          displayUsername: 'admin',
+          password: 'admin',
           firstName: 'Winter',
           lastName: 'Kim',
           position: 'Administrator',
           sectionId: section.id,
           role: 'ADMIN',
         },
-        { method: 'admin' }
-      )
-      await ctx.internalAdapter.linkAccount({
-        userId: user.id,
-        providerId: 'credential',
-        accountId: user.id,
-        password: await ctx.password.hash('admin'),
       })
     }
   )

@@ -21,7 +21,7 @@ export async function createSection(code = 'ICTU') {
   return db.section.create({ data: { code, name: `Section ${code}`, divisionId: division.id } })
 }
 
-/** Creates a user with a credential account, the same way the seed does. */
+/** Creates a user through Better Auth's sign-up, the same way the seed does. */
 export async function createUser(opts: {
   username: string
   password?: string
@@ -29,12 +29,12 @@ export async function createUser(opts: {
   isActive?: boolean
   sectionId: number
 }) {
-  const ctx = await auth.$context
-  const user = await ctx.internalAdapter.createUser(
-    {
+  const { user } = await auth.api.signUpEmail({
+    body: {
       name: `Test ${opts.username}`,
       email: placeholderEmail(opts.username),
       username: opts.username,
+      password: opts.password ?? 'secret',
       firstName: 'Test',
       lastName: opts.username,
       position: 'Tester',
@@ -42,13 +42,6 @@ export async function createUser(opts: {
       role: opts.role ?? 'STAFF',
       isActive: opts.isActive ?? true,
     },
-    { method: 'admin' }
-  )
-  await ctx.internalAdapter.linkAccount({
-    userId: user.id,
-    providerId: 'credential',
-    accountId: user.id,
-    password: await ctx.password.hash(opts.password ?? 'secret'),
   })
   return user
 }

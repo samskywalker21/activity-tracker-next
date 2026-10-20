@@ -46,6 +46,10 @@ export async function signUp(input: unknown): Promise<ActionResult> {
       },
       headers: await headers(),
     })
+    await auth.api.signInUsername({
+      body: { username: data.username, password: data.password },
+      headers: await headers(),
+    })
   } catch (error) {
     if (isAPIError(error)) return { ok: false, error: error.message }
     throw error

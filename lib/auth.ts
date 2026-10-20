@@ -17,7 +17,13 @@ export const placeholderEmail = (name: string) => `${name.toLowerCase()}@activit
 
 export const auth = betterAuth({
   database: prismaAdapter(db, { provider: 'postgresql' }),
-  emailAndPassword: { enabled: true, minPasswordLength: 4, maxPasswordLength: 100 },
+  emailAndPassword: {
+    enabled: true,
+    minPasswordLength: 4,
+    maxPasswordLength: 100,
+    // Sign-up only creates the user; the sign-up action signs in explicitly afterwards.
+    autoSignIn: false,
+  },
   session: {
     expiresIn: 60 * 60 * 24 * 7, // 7 days, sliding:
     updateAge: 60 * 60 * 24, // extended at most once a day
@@ -29,8 +35,9 @@ export const auth = betterAuth({
       lastName: { type: 'string', required: true },
       position: { type: 'string', required: true },
       sectionId: { type: 'number', required: true },
-      role: { type: ['ADMIN', 'MANAGER', 'STAFF'], input: false, defaultValue: 'STAFF' },
-      isActive: { type: 'boolean', input: false, defaultValue: true },
+      // Accepted as input so server code (seed, admin actions) can set them; refused over HTTP below.
+      role: { type: ['ADMIN', 'MANAGER', 'STAFF'], defaultValue: 'STAFF' },
+      isActive: { type: 'boolean', defaultValue: true },
     },
   },
   // Username sign-in only; profile edits go through the app's own (audited) actions.
@@ -54,6 +61,11 @@ export const auth = betterAuth({
   hooks: {
     before: createAuthMiddleware(async (ctx) => {
       if (ctx.path === '/sign-up/email') {
+        // `ctx.request` is only set for HTTP calls; `auth.api.*` calls from our own server code
+        // have none. The public sign-up action passes neither, so sign-ups are active STAFF.
+        if (ctx.request && (ctx.body.role !== undefined || ctx.body.isActive !== undefined)) {
+          throw new APIError('FORBIDDEN', { message: 'You cannot set your own role or status' })
+        }
         const { username, firstName, lastName } = ctx.body
         return {
           context: {
@@ -94,8 +106,9 @@ export const auth = betterAuth({
         }
       }
 
-      if (ctx.path === '/sign-up/email' && !failed && ctx.context.newSession) {
-        const user = ctx.context.newSession.user
+      // No session after sign-up (autoSignIn is off), so the new user comes from the response.
+      if (ctx.path === '/sign-up/email' && !failed) {
+        const { user } = returned as { user: { id: string } }
         await audit(db, {
           actorId: user.id,
           action: 'auth.sign_up',

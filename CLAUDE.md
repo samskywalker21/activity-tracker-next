@@ -28,13 +28,19 @@ Formatting is Biome: no semicolons, single quotes, width 100. Run `pnpm format`.
 
 - `lib/auth.ts` is the Better Auth config. Sign-in is username-only (`/sign-in/email` and
   `/update-user` are disabled); the email column holds `placeholderEmail(username)`.
-- `role` and `isActive` are `input: false`; Better Auth silently drops them from sign-up input.
+- `role` and `isActive` accept input (defaults `STAFF` / `true`), but the sign-up before-hook
+  refuses either over HTTP (`ctx.request` set). Only server code passes them: the seed (the only
+  way to get an admin besides an admin action) and, later, admin-only profile actions. The public
+  `signUp` action passes neither, so sign-ups are active STAFF.
+- `autoSignIn` is off: sign-up creates no session. The `signUp` action calls `signInUsername`
+  itself. With it off, Better Auth answers a duplicate *email* with a fake success; we never hit
+  that because the username plugin refuses a taken username first (emails derive from usernames).
 - Inactive users are refused in the `session.create.before` database hook, and
   `getOptionalUser()` also ignores sessions of inactive users.
 - Auth audit rows (sign-in success/failure, sign-out, sign-up) are written in `hooks` in
   `lib/auth.ts`, so direct calls to `/api/auth/*` are audited too.
-- To create a user outside sign-up (seed, tests, admin), use `auth.$context` →
-  `internalAdapter.createUser(…, { method: 'admin' })` + `linkAccount` with `password.hash()`.
+- To create a user from server code (seed, tests, admin actions), call `auth.api.signUpEmail`
+  with no request; it hashes the password and writes an `auth.sign_up` audit row.
 
 ## Tests
 

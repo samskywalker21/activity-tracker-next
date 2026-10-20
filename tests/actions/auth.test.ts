@@ -133,12 +133,11 @@ describe('sign up', () => {
       sectionId,
     })
     expect((await getOptionalUser())?.id).toBe(user.id)
-    expect(await db.auditLog.findFirst()).toMatchObject({
-      action: 'auth.sign_up',
-      actorId: user.id,
-      entityType: 'User',
-      entityId: user.id,
-    })
+    const rows = await db.auditLog.findMany({ orderBy: { id: 'asc' } })
+    expect(rows).toMatchObject([
+      { action: 'auth.sign_up', actorId: user.id, entityType: 'User', entityId: user.id },
+      { action: 'auth.sign_in', actorId: user.id },
+    ])
   })
 
   test('a taken username is refused', async () => {
@@ -162,27 +161,51 @@ describe('sign up', () => {
     })
   })
 
-  test('a direct call to the sign-up endpoint cannot set role, isActive or a real email', async () => {
-    await auth.api.signUpEmail({
-      body: {
-        email: 'x@example.com',
-        name: 'Sneaky User',
-        username: 'sneaky',
-        password: 'pass1234',
-        firstName: 'Sneaky',
-        lastName: 'User',
-        position: 'Clerk',
-        sectionId,
-        // @ts-expect-error not input fields; Better Auth drops them
-        role: 'ADMIN',
-        isActive: false,
-      },
-    })
+  // Over HTTP, as a browser or script would call it.
+  const postSignUp = (body: object) =>
+    auth.handler(
+      new Request(`${process.env.BETTER_AUTH_URL}/api/auth/sign-up/email`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify(body),
+      })
+    )
+  const direct = {
+    email: 'x@example.com',
+    name: 'Sneaky User',
+    username: 'sneaky',
+    password: 'pass1234',
+    firstName: 'Sneaky',
+    lastName: 'User',
+    position: 'Clerk',
+  }
 
-    expect(await db.user.findUnique({ where: { username: 'sneaky' } })).toMatchObject({
+  test('the sign-up endpoint refuses a role or status', async () => {
+    expect((await postSignUp({ ...direct, sectionId, role: 'ADMIN' })).status).toBe(403)
+    expect((await postSignUp({ ...direct, sectionId, isActive: false })).status).toBe(403)
+    expect(await db.user.findUnique({ where: { username: 'sneaky' } })).toBeNull()
+  })
+
+  test('the sign-up endpoint replaces the email and does not sign in', async () => {
+    const response = await postSignUp({ ...direct, sectionId })
+    expect(response.status).toBe(200)
+    expect(response.headers.getSetCookie()).toEqual([])
+    const user = await db.user.findUniqueOrThrow({ where: { username: 'sneaky' } })
+    expect(user).toMatchObject({
       role: 'STAFF',
       isActive: true,
       email: 'sneaky@activity-tracker.local',
+    })
+    expect(await db.session.count({ where: { userId: user.id } })).toBe(0)
+  })
+
+  test('server code can set a role and status (the seed creates the admin this way)', async () => {
+    await auth.api.signUpEmail({
+      body: { ...direct, sectionId, username: 'boss', role: 'MANAGER', isActive: false },
+    })
+    expect(await db.user.findUnique({ where: { username: 'boss' } })).toMatchObject({
+      role: 'MANAGER',
+      isActive: false,
     })
   })
 })
