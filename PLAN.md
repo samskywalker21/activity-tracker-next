@@ -115,7 +115,7 @@ Rows marked **(changed)** differ from the old app on purpose.
 | Notifications **(changed)** | Derived, not stored, newer than `user.notificationsSeenAt`, never your own actions. **Creators** see status changes and comments by others on activities they created. **Reviewers** (manager/admin) also see: new submissions, resubmissions (any → PENDING), cancellations and comments on PENDING activities. If one item qualifies twice, it appears once. Bell polls the unread count every 60s and on tab focus. Opening it marks all seen but keeps highlighting what was new at open time. |
 | Audit log **(new)** | Every write (activities, status changes, comments, profiles, reference data) and auth event (sign-in success/failure, sign-out, sign-up, own password change, admin password reset) appends an `AuditLog` row. Data writes add it in the **same transaction**. It stores a field diff (before → after; pivots as id lists) and never passwords, hashes or tokens. Admin-only. |
 | Holidays          | Snapped to whole days in `APP_TIMEZONE`; end may not precede start.                                                                          |
-| Activity search   | Title, owner, venue, creator's names, section/division name and code. Filters: creator, type, virtual, status, section, division, start-range. Lists ordered `createdAt desc, id desc`. Every signed-in user sees all activities. |
+| Activity search   | Title, owner, venue, creator's names, section/division name and code. Filters: creator, type, virtual, status, section, division, start-range. Lists ordered `createdAt desc, id desc`; the review queue defaults to oldest first, with a newest-first toggle. Every signed-in user sees all activities. |
 | CSV export        | Any signed-in user. Same filters as the list, all pages, ordered by start. UTF-8 **with BOM**, local wall-clock dates, pivots joined with `; `, human labels. |
 | Validation        | Title/owner/venue min 4; profile names 2–50; username 4–100; password 4–100; position 4–30; division/section code ≤ 10; participant/holiday name min 3. |
 
@@ -393,7 +393,7 @@ Each phase ends runnable, with `pnpm biome check`, `pnpm tsc --noEmit` and `pnpm
   the CSV text; the browser downloads it as a Blob, with BOM).
 - `/my-activities` (Pending / Approved / Returned tabs), `/review` queue.
 - Dashboard: counts, "needs your attention" (returned items with reason, review queue count for
-  reviewers), recent activity.
+  reviewers), recent activity (own section for non-admins, with a toggle to all; admins see all).
 
 ### Phase 7 — Public calendar
 - schedule-x month grid + agenda (phone), `APP_TIMEZONE`, statuses as calendars, holidays as

@@ -3,11 +3,14 @@
 import { revalidatePath } from 'next/cache'
 import type { Prisma } from '@/generated/prisma/client'
 import { type ActionResult, validationFailed } from '@/lib/action-result'
+import { activityWhere, loadActivityFilters } from '@/lib/activity-list'
 import { audit, diff } from '@/lib/audit'
 import type { Conflicts } from '@/lib/conflicts'
+import { formatDay, formatTime } from '@/lib/dates'
 import { db } from '@/lib/db'
 import { allowedTransitions, canEdit, REVIEW_DECISIONS, statusAfterEdit } from '@/lib/rules'
 import { requireUser } from '@/lib/session'
+import { statusLabels, typeLabels } from '@/lib/status'
 import {
   type ActivityInput,
   activitySchema,
@@ -213,4 +216,85 @@ export async function checkConflicts(input: unknown): Promise<ActionResult<Confl
   ])
 
   return { ok: true, data: { date, participants, lgus, facilities, holidays } }
+}
+
+/** RFC 4180: quote every field, double any quote inside it. */
+const csvField = (value: unknown) => `"${String(value ?? '').replaceAll('"', '""')}"`
+/** Wall-clock time in APP_TIMEZONE, the zone the activities were entered in. */
+const csvStamp = (date: Date) => `${formatDay(date)} ${formatTime(date)}`
+
+/**
+ * The activities matching the list's search and filters (`query` is its query string), every
+ * page, ordered by start, as CSV text. The browser adds the BOM Excel needs to read it as UTF-8.
+ */
+export async function exportActivities(query: string): Promise<ActionResult<string>> {
+  await requireUser()
+  const filters = await loadActivityFilters(query)
+
+  const activities = await db.activity.findMany({
+    where: activityWhere(filters),
+    orderBy: [{ start: 'asc' }, { id: 'asc' }],
+    include: {
+      section: { include: { division: true } },
+      createdBy: { select: { name: true } },
+      participants: { select: { name: true }, orderBy: { name: 'asc' } },
+      lgus: { select: { muncity: true }, orderBy: { muncity: 'asc' } },
+      facilities: { select: { name: true }, orderBy: { name: 'asc' } },
+    },
+  })
+
+  const header = [
+    'ID',
+    'Title',
+    'Type',
+    'Status',
+    'Start',
+    'End',
+    'All day',
+    'Virtual',
+    'Venue',
+    'Owner',
+    'Section',
+    'Division',
+    'Participants',
+    'LGUs',
+    'Facilities',
+    'Other participants',
+    'Other LGUs',
+    'Other facilities',
+    'Others',
+    'PR No.',
+    'Remarks',
+    'Created by',
+  ]
+  const lines = activities.map((a) =>
+    [
+      a.id,
+      a.title,
+      typeLabels[a.type],
+      statusLabels[a.status],
+      csvStamp(a.start),
+      csvStamp(a.end),
+      a.allDay ? 'Yes' : 'No',
+      a.virtual ? 'Yes' : 'No',
+      a.venue,
+      a.owner,
+      a.section.name,
+      a.section.division.name,
+      a.participants.map((p) => p.name).join('; '),
+      a.lgus.map((l) => l.muncity).join('; '),
+      a.facilities.map((f) => f.name).join('; '),
+      a.otherParticipants,
+      a.otherLgu,
+      a.otherFacilities,
+      a.others,
+      a.prNo,
+      a.remarks,
+      a.createdBy.name,
+    ]
+      .map(csvField)
+      .join(',')
+  )
+
+  return { ok: true, data: `${[header.map(csvField).join(','), ...lines].join('\r\n')}\r\n` }
 }

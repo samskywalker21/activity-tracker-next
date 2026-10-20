@@ -28,6 +28,9 @@ Formatting is Biome: no semicolons, single quotes, width 100. Run `pnpm format`.
   `searchParams` with `loadListParams()` (`lib/search-params.ts`), queries Prisma and renders
   `PageHeader`, `FilterBar`, a client `*Table` (`DataTable` + column defs) and `PaginationBar`.
   Create/edit is a `*Dialog` whose form calls a server action and maps `fieldErrors` onto fields.
+- Activity lists (`/activities`, `/my-activities`, `/review`, dashboard, CSV export) share
+  `lib/activity-list.ts`: the URL filters, `activityWhere()`, the ordering and `toActivityRow()` for
+  `ActivitiesTable`.
 - Server actions are one file per entity in `actions/`; each write and its `audit()` row share
   a transaction, then `revalidatePath`.
 - Who may edit, review or cancel an activity lives only in `lib/rules.ts` (pure, unit-tested);
