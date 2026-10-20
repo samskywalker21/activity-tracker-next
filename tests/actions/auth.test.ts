@@ -1,25 +1,11 @@
 import { beforeAll, beforeEach, describe, expect, test, vi } from 'vitest'
 
-// A fake request: cookies Better Auth sets on sign-in are sent back on the next `headers()`.
-const { jar, nextHeaders } = vi.hoisted(() => {
-  const jar = new Map<string, string>()
-  const nextHeaders = {
-    headers: async () =>
-      new Headers({ cookie: [...jar].map(([name, value]) => `${name}=${value}`).join('; ') }),
-    cookies: async () => ({
-      set: (name: string, value: string) => (value ? jar.set(name, value) : jar.delete(name)),
-    }),
-  }
-  return { jar, nextHeaders }
-})
-vi.mock('next/headers', () => nextHeaders)
+import { jar } from '../next-mocks'
+
+vi.mock('next/headers', async () => (await import('../next-mocks')).nextHeaders)
 // Better Auth's nextCookies plugin imports it with the extension.
-vi.mock('next/headers.js', () => nextHeaders)
-vi.mock('next/navigation', () => ({
-  redirect: (url: string) => {
-    throw new Error(`REDIRECT ${url}`)
-  },
-}))
+vi.mock('next/headers.js', async () => (await import('../next-mocks')).nextHeaders)
+vi.mock('next/navigation', async () => (await import('../next-mocks')).nextNavigation)
 
 const { signIn, signOut, signUp } = await import('@/actions/auth')
 const { auth } = await import('@/lib/auth')

@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'vitest'
-import { APP_TIMEZONE, dayBounds, formatRange } from '@/lib/dates'
+import { APP_TIMEZONE, dayBounds, formatDay, formatRange, parseDay } from '@/lib/dates'
 
 // Asia/Manila is UTC+8 all year (no DST).
 test('tests run in Asia/Manila', () => {
@@ -66,5 +66,16 @@ describe('formatRange', () => {
     expect(formatRange(at('2026-10-26T08:00'), at('2026-10-28T17:00'), false)).toBe(
       'Oct 26, 2026, 8:00 AM – Oct 28, 2026, 5:00 PM'
     )
+  })
+})
+
+describe('parseDay / formatDay', () => {
+  test('a day string is the start of that day in Manila', () => {
+    expect(parseDay('2026-10-22').toISOString()).toBe('2026-10-21T16:00:00.000Z')
+  })
+
+  test('formatDay reads the Manila day, not the UTC one', () => {
+    expect(formatDay(new Date('2026-10-21T16:00:00Z'))).toBe('2026-10-22')
+    expect(formatDay(new Date('2026-10-22T15:59:59Z'))).toBe('2026-10-22')
   })
 })

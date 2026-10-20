@@ -23,6 +23,13 @@ Formatting is Biome: no semicolons, single quotes, width 100. Run `pnpm format`.
   `@/generated/prisma/client`.
 - `proxy.ts` (Next 16 name for middleware) lives at the root.
 - `components/ui/` is vendored shadcn: formatted by Biome but not linted. Don't hand-edit it.
+  One exception: `PaginationLink` renders `next/link` instead of `<a>` (shadcn's documented tweak).
+- Lists and forms follow one pattern (see `app/(app)/manage/participants/`): a server page reads
+  `searchParams` with `loadListParams()` (`lib/search-params.ts`), queries Prisma and renders
+  `PageHeader`, `FilterBar`, a client `*Table` (`DataTable` + column defs) and `PaginationBar`.
+  Create/edit is a `*Dialog` whose form calls a server action and maps `fieldErrors` onto fields.
+- Server actions are one file per entity in `actions/`; each write and its `audit()` row share
+  a transaction, then `revalidatePath`.
 
 ## Auth
 
@@ -37,18 +44,23 @@ Formatting is Biome: no semicolons, single quotes, width 100. Run `pnpm format`.
   that because the username plugin refuses a taken username first (emails derive from usernames).
 - Inactive users are refused in the `session.create.before` database hook, and
   `getOptionalUser()` also ignores sessions of inactive users.
-- Auth audit rows (sign-in success/failure, sign-out, sign-up) are written in `hooks` in
-  `lib/auth.ts`, so direct calls to `/api/auth/*` are audited too.
+- Auth audit rows (sign-in success/failure, sign-out, sign-up, own password change) are written
+  in `hooks` in `lib/auth.ts`, so direct calls to `/api/auth/*` are audited too.
 - To create a user from server code (seed, tests, admin actions), call `auth.api.signUpEmail`
-  with no request; it hashes the password and writes an `auth.sign_up` audit row.
+  without headers; it hashes the password. `auth.sign_up` is only audited when headers are present
+  (a real self sign-up), so the admin `createProfile` action writes its own `user.create` row.
+- Admin password resets hash with `(await auth.$context).password.hash()` and update the
+  `credential` account in a transaction with the audit row. Never put a password in an audit row.
 
 ## Tests
 
 - Vitest runs against `TEST_DATABASE_URL` (set as `DATABASE_URL` in `vitest.config.mts`), one
-  file at a time; `tests/helpers.ts` has `resetDb()`, `createSection()`, `createUser()`.
-- Action tests mock `next/headers` **and** `next/headers.js` with a cookie jar (see
-  `tests/actions/auth.test.ts`) so real sessions round-trip. `better-auth` is inlined in the
-  Vitest config for that mock to reach it.
+  file at a time; `tests/helpers.ts` has `resetDb()`, `createSection()`, `createUser()` and
+  `signInAs()` (which clears the audit log, so a test sees only its own rows).
+- Action tests mock `next/headers` **and** `next/headers.js`, `next/navigation` and `next/cache`
+  with the stand-ins in `tests/next-mocks.ts` (a cookie jar, so real sessions round-trip; copy the
+  `vi.mock` lines from an existing test). `better-auth` is inlined in the Vitest config for the
+  mock to reach it.
 
 ## Checks
 

@@ -14,17 +14,22 @@ export function dayBounds(start: Date, end: Date = start) {
   }
 }
 
-/** A short human range in APP_TIMEZONE, e.g. "Oct 27, 2026 · 1:00–5:00 PM". */
-export function formatRange(start: Date, end: Date, allDay: boolean) {
+/** The days a range covers in APP_TIMEZONE, e.g. "Oct 23–24, 2026". */
+export function formatDays(start: Date, end: Date) {
   const s = zoned(start)
   const e = zoned(end)
+  if (isSameDay(s, e)) return format(s, 'MMM d, yyyy')
+  if (isSameMonth(s, e)) return `${format(s, 'MMM d')}–${format(e, 'd, yyyy')}`
+  if (isSameYear(s, e)) return `${format(s, 'MMM d')} – ${format(e, 'MMM d, yyyy')}`
+  return `${format(s, 'MMM d, yyyy')} – ${format(e, 'MMM d, yyyy')}`
+}
 
-  if (allDay) {
-    if (isSameDay(s, e)) return `${format(s, 'MMM d, yyyy')} · All day`
-    if (isSameMonth(s, e)) return `${format(s, 'MMM d')}–${format(e, 'd, yyyy')} · All day`
-    if (isSameYear(s, e)) return `${format(s, 'MMM d')} – ${format(e, 'MMM d, yyyy')} · All day`
-    return `${format(s, 'MMM d, yyyy')} – ${format(e, 'MMM d, yyyy')} · All day`
-  }
+/** A short human range in APP_TIMEZONE, e.g. "Oct 27, 2026 · 1:00–5:00 PM". */
+export function formatRange(start: Date, end: Date, allDay: boolean) {
+  if (allDay) return `${formatDays(start, end)} · All day`
+
+  const s = zoned(start)
+  const e = zoned(end)
 
   if (isSameDay(s, e)) {
     const times =
@@ -34,4 +39,15 @@ export function formatRange(start: Date, end: Date, allDay: boolean) {
     return `${format(s, 'MMM d, yyyy')} · ${times}`
   }
   return `${format(s, 'MMM d, yyyy, h:mm a')} – ${format(e, 'MMM d, yyyy, h:mm a')}`
+}
+
+/** A `yyyy-MM-dd` day in APP_TIMEZONE, as the instant it starts. Used by date-only fields. */
+export function parseDay(day: string) {
+  const [year, month, date] = day.split('-').map(Number)
+  return new Date(new TZDate(year, month - 1, date, APP_TIMEZONE).getTime())
+}
+
+/** The `yyyy-MM-dd` day an instant falls on in APP_TIMEZONE. */
+export function formatDay(date: Date) {
+  return format(zoned(date), 'yyyy-MM-dd')
 }

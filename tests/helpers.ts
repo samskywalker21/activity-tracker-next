@@ -1,6 +1,7 @@
 import type { Role } from '@/generated/prisma/enums'
 import { auth, placeholderEmail } from '@/lib/auth'
 import { db } from '@/lib/db'
+import { jar } from './next-mocks'
 
 /** Empties every table in the test database. */
 export async function resetDb() {
@@ -44,4 +45,14 @@ export async function createUser(opts: {
     },
   })
   return user
+}
+
+/**
+ * Signs in through Better Auth; the session cookie lands in the mocked cookie jar. Clears the
+ * audit log afterwards so a test sees only the rows its own actions write.
+ */
+export async function signInAs(username: string, password = 'secret') {
+  jar.clear()
+  await auth.api.signInUsername({ body: { username, password }, headers: new Headers() })
+  await db.auditLog.deleteMany()
 }

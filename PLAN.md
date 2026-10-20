@@ -284,7 +284,7 @@ actions/                # 'use server' — one file per area
   comments.ts           # add, edit, delete
   calendar.ts           # getCalendarRange (public), getHolidays (public)
   notifications.ts      # getUnreadCount, getNotifications, markSeen
-  reference.ts          # divisions, sections, lgus, participants, facilities, holidays
+  divisions.ts, sections.ts, lgus.ts, participants.ts, facilities.ts, holidays.ts  # reference data, one file each
   profiles.ts           # admin: create, update, setActive, setRole, setPassword; self: updateOwn, changeOwnPassword
 lib/
   db.ts                 # Prisma client singleton

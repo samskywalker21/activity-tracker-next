@@ -106,14 +106,24 @@ export const auth = betterAuth({
         }
       }
 
+      // A self sign-up always carries request headers (the sign-up action or HTTP). Server code
+      // without them (seed, admin "create profile") writes its own audit row instead.
       // No session after sign-up (autoSignIn is off), so the new user comes from the response.
-      if (ctx.path === '/sign-up/email' && !failed) {
+      if (ctx.path === '/sign-up/email' && !failed && ctx.headers) {
         const { user } = returned as { user: { id: string } }
         await audit(db, {
           actorId: user.id,
           action: 'auth.sign_up',
           entityType: 'User',
           entityId: user.id,
+          ip: clientIp(ctx),
+        })
+      }
+
+      if (ctx.path === '/change-password' && !failed && ctx.context.session) {
+        await audit(db, {
+          actorId: ctx.context.session.user.id,
+          action: 'auth.password_change',
           ip: clientIp(ctx),
         })
       }
