@@ -22,6 +22,27 @@ Formatting is Biome: no semicolons, single quotes, width 100. Run `pnpm format`.
 - Prisma client is generated into `generated/prisma` (git-ignored); import from
   `@/generated/prisma/client`.
 - `proxy.ts` (Next 16 name for middleware) lives at the root.
+- `components/ui/` is vendored shadcn: formatted by Biome but not linted. Don't hand-edit it.
+
+## Auth
+
+- `lib/auth.ts` is the Better Auth config. Sign-in is username-only (`/sign-in/email` and
+  `/update-user` are disabled); the email column holds `placeholderEmail(username)`.
+- `role` and `isActive` are `input: false`; Better Auth silently drops them from sign-up input.
+- Inactive users are refused in the `session.create.before` database hook, and
+  `getOptionalUser()` also ignores sessions of inactive users.
+- Auth audit rows (sign-in success/failure, sign-out, sign-up) are written in `hooks` in
+  `lib/auth.ts`, so direct calls to `/api/auth/*` are audited too.
+- To create a user outside sign-up (seed, tests, admin), use `auth.$context` →
+  `internalAdapter.createUser(…, { method: 'admin' })` + `linkAccount` with `password.hash()`.
+
+## Tests
+
+- Vitest runs against `TEST_DATABASE_URL` (set as `DATABASE_URL` in `vitest.config.mts`), one
+  file at a time; `tests/helpers.ts` has `resetDb()`, `createSection()`, `createUser()`.
+- Action tests mock `next/headers` **and** `next/headers.js` with a cookie jar (see
+  `tests/actions/auth.test.ts`) so real sessions round-trip. `better-auth` is inlined in the
+  Vitest config for that mock to reach it.
 
 ## Checks
 

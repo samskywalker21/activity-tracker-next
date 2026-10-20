@@ -17,6 +17,8 @@ pnpm install                      # also runs `prisma generate`
 cp .env.example .env              # then fill in DATABASE_URL and BETTER_AUTH_SECRET
 createdb -U postgres activity_tracker
 createdb -U postgres activity_tracker_test
+pnpm db:migrate                   # apply migrations to the dev database
+pnpm db:seed                      # reference data + admin user (admin / admin)
 pnpm exec playwright install chromium
 pnpm dev
 ```
