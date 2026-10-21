@@ -143,5 +143,3 @@ function clientIp(ctx: {
   const source = ctx.request ?? ctx.headers
   return source ? getIP(source, ctx.context.options) : null
 }
-
-export type SessionUser = typeof auth.$Infer.Session.user

@@ -312,18 +312,18 @@ app/
   api/auth/[...all]/route.ts   # Better Auth's own handler — the only route
   not-found.tsx, error.tsx
 actions/                # 'use server' — one file per area
-  activities.ts         # create, update, changeStatus, checkConflicts, exportCsv
+  activities.ts         # create, update, changeStatus, checkConflicts, exportActivities
   comments.ts           # add, edit, delete
-  calendar.ts           # getCalendarRange (public), getHolidays (public)
-  notifications.ts      # getUnreadCount, getNotifications, markSeen
+  calendar.ts           # getCalendarRange (public; holidays load with the page)
+  notifications.ts      # getUnreadCount, getNotifications, markNotificationsSeen
   divisions.ts, sections.ts, lgus.ts, participants.ts, facilities.ts, holidays.ts  # reference data, one file each
   profiles.ts           # admin: create, update, setActive, setRole, setPassword; self: updateOwn, changeOwnPassword
 lib/
   db.ts                 # Prisma client singleton
   auth.ts               # Better Auth server config (+ hooks that write auth audit rows)
-  auth-client.ts        # Better Auth React client
   session.ts            # requireUser(), requireRole(), getOptionalUser()
-  queries/              # 'server-only' read functions used by server components
+  search-params.ts      # loadListParams() for the reference-data and profile lists
+  activity-list.ts      # URL filters, activityWhere(), ordering, toActivityRow() for the lists
   rules.ts              # canEdit, canReview, canCancel, statusAfterEdit, allowedTransitions — pure
   dates.ts              # APP_TIMEZONE, dayBounds(), formatRange() — pure
   conflicts.ts          # groupConflicts() — pure

@@ -2,7 +2,7 @@ import type { Prisma } from '@/generated/prisma/client'
 
 export type Diff = Record<string, [unknown, unknown]>
 
-export type AuditEntry = {
+type AuditEntry = {
   actorId?: string | null
   action: string
   entityType?: string

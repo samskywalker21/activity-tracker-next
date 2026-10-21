@@ -94,7 +94,6 @@ export function rangeToDates(data: z.infer<typeof range>) {
 }
 
 export type ActivityInput = z.input<typeof activitySchema>
-export type ConflictCheckInput = z.input<typeof conflictCheckSchema>
 export type StatusChangeInput = z.input<typeof statusChangeSchema>
 export type CommentInput = z.input<typeof commentSchema>
 export type CalendarRangeInput = z.input<typeof calendarRangeSchema>

@@ -43,7 +43,6 @@ export const changeOwnPasswordSchema = z
     path: ['confirmPassword'],
   })
 
-export type ProfileInput = z.input<typeof profileSchema>
 export type CreateProfileInput = z.input<typeof createProfileSchema>
 export type SetPasswordInput = z.input<typeof setPasswordSchema>
 export type ChangeOwnPasswordInput = z.input<typeof changeOwnPasswordSchema>

@@ -13,7 +13,7 @@ import { PAGE_SIZE } from '@/lib/search-params'
 const day = parseAsString // `yyyy-MM-dd`; anything else is ignored by activityWhere
 
 /** The activity list's search and filters, as they appear in the URL. */
-export const activityFilters = {
+const activityFilters = {
   q: parseAsString.withDefault(''),
   status: parseAsStringLiteral(Object.values(ActivityStatus)),
   type: parseAsStringLiteral(Object.values(ActivityType)),
@@ -24,7 +24,7 @@ export const activityFilters = {
   from: day,
   to: day,
 }
-export type ActivityFilters = inferParserType<typeof activityFilters>
+type ActivityFilters = inferParserType<typeof activityFilters>
 
 const loader = createLoader({ ...activityFilters, page: parseAsInteger.withDefault(1) })
 
