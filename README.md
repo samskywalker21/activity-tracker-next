@@ -35,6 +35,7 @@ createdb -U postgres activity_tracker
 createdb -U postgres activity_tracker_test
 pnpm db:migrate                   # apply migrations to the dev database
 pnpm db:seed                      # reference data + admin user (admin / admin)
+pnpm db:samples                   # optional: sample users and activities to try it out
 pnpm exec playwright install chromium
 pnpm dev
 ```
@@ -55,6 +56,7 @@ Change the admin password after the first sign-in (Profile → Change password).
 | `pnpm test:e2e`   | Playwright: flows, accessibility and phone layout (see below) |
 | `pnpm db:migrate` | `prisma migrate dev`                                          |
 | `pnpm db:seed`    | `prisma db seed`                                              |
+| `pnpm db:samples` | Sample users and Oct–Dec 2026 activities (password = username) |
 | `pnpm db:studio`  | Prisma Studio                                                 |
 
 ## Tests
