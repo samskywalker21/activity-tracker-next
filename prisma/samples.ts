@@ -1,6 +1,7 @@
 // `pnpm db:samples` — sample data for trying the app out, on top of `pnpm db:seed`: a manager and
 // four staff (password = username) and about thirty activities from October to December 2026,
 // with their status history and a few comments. Skipped if the sample users already exist.
+// Also the national holidays of those months, each skipped if its day already has a holiday.
 // Not audited: like the regular seed, it is set-up data, not something anyone did.
 import 'dotenv/config'
 import type { ActivityStatus, ActivityType } from '@/generated/prisma/enums'
@@ -384,6 +385,17 @@ const comments: { title: string; by: Username; body: string }[] = [
   },
 ]
 
+/** Philippine regular and special non-working days, October to December 2026. */
+const holidays: [day: string, name: string][] = [
+  ['2026-11-01', "All Saints' Day"],
+  ['2026-11-30', 'Bonifacio Day'],
+  ['2026-12-08', 'Feast of the Immaculate Conception of Mary'],
+  ['2026-12-24', 'Christmas Eve'],
+  ['2026-12-25', 'Christmas Day'],
+  ['2026-12-30', 'Rizal Day'],
+  ['2026-12-31', 'Last Day of the Year'],
+]
+
 const DAY = 24 * 60 * 60 * 1000
 const now = new Date()
 
@@ -392,6 +404,15 @@ const notAfterNow = (date: Date, hoursAgo: number) =>
   date < now ? date : new Date(now.getTime() - hoursAgo * 60 * 60 * 1000)
 
 async function main() {
+  let added = 0
+  for (const [day, name] of holidays) {
+    const { start, end } = dayBounds(parseDay(day))
+    if (await db.holiday.findFirst({ where: { start } })) continue
+    await db.holiday.create({ data: { name, start, end } })
+    added++
+  }
+  console.log(`seeded  holidays: ${added} of ${holidays.length}`)
+
   if (await db.user.findUnique({ where: { username: 'mreyes' } })) {
     console.log('skipped samples: the sample users already exist')
     return
