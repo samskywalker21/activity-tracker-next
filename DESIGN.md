@@ -16,7 +16,7 @@ hex in components.
 | `foreground`                         | `#17201B`  | `#E6ECE8`   | Body text                                |
 | `muted` / `muted-foreground`         | `#F7F9F8` / `#56625B` | `#1A211D` / `#9AA69F` | Table header row, secondary text |
 | `border` / `input`                   | `#DDE3DF` / `#D3DAD5` | `#29322D` / `#323C36` | Hairlines, field borders |
-| `primary` / `primary-foreground`     | `#00703C` / white | `#1C8A4E` / white | Primary buttons, focus ring; links (dark: `accent-foreground`) |
+| `primary` / `primary-foreground`     | `#00703C` / white | `#1A854B` / white | Primary buttons, focus ring; links (dark: `accent-foreground`) |
 | `accent` / `accent-foreground`       | `#E6F2EB` / `#005E32` | green 14% / `#8FE0B1` | Hover, chips, tinted icon tiles |
 | `destructive`                        | `#B42318`  | `#F27C6E`   | Destructive buttons, field errors        |
 | `gold`                               | `#FCD116`  | `#E9C21A`   | Active-nav bar, count badges, today      |

@@ -103,7 +103,7 @@
   --card-foreground: #e6ece8;
   --popover: #151b18;
   --popover-foreground: #e6ece8;
-  --primary: #1c8a4e;
+  --primary: #1a854b;
   --primary-foreground: #ffffff;
   --secondary: rgb(76 190 126 / 14%);
   --secondary-foreground: #8fe0b1;
@@ -201,4 +201,9 @@
   .sx-react-calendar-wrapper {
     height: max(40rem, calc(100dvh - 12rem));
   }
+}
+
+/* Its dark theme hides the View and Date field labels; on our card background they read fine. */
+.sx__calendar-wrapper.sx__calendar-wrapper :is(.sx__date-input-label, .sx__view-selection-label) {
+  display: block;
 }

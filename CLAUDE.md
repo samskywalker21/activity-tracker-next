@@ -23,7 +23,9 @@ Formatting is Biome: no semicolons, single quotes, width 100. Run `pnpm format`.
   `@/generated/prisma/client`.
 - `proxy.ts` (Next 16 name for middleware) lives at the root.
 - `components/ui/` is vendored shadcn: formatted by Biome but not linted. Don't hand-edit it.
-  One exception: `PaginationLink` renders `next/link` instead of `<a>` (shadcn's documented tweak).
+  Two exceptions: `PaginationLink` renders `next/link` instead of `<a>` (shadcn's documented
+  tweak), and an inactive `TabsTrigger` uses `text-muted-foreground` instead of
+  `text-foreground/60`, which fails WCAG AA contrast on `bg-muted`.
 - Lists and forms follow one pattern (see `app/(app)/manage/participants/`): a server page reads
   `searchParams` with `loadListParams()` (`lib/search-params.ts`), queries Prisma and renders
   `PageHeader`, `FilterBar`, a client `*Table` (`DataTable` + column defs) and `PaginationBar`.
@@ -76,7 +78,12 @@ Formatting is Biome: no semicolons, single quotes, width 100. Run `pnpm format`.
   with the stand-ins in `tests/next-mocks.ts` (a cookie jar, so real sessions round-trip; copy the
   `vi.mock` lines from an existing test). `better-auth` is inlined in the Vitest config for the
   mock to reach it.
+- Playwright (`e2e/`) builds and serves the app on port 3100 against the test database, reseeded
+  by `e2e/seed.ts` (users `admin`, `manager`, `staff`; password = username). `signIn()`,
+  `changeStatus()` and `expectAccessible()` (axe-core, WCAG 2.1 AA) are in `e2e/helpers.ts`. A new
+  screen goes into `accessibility.spec.ts` and `responsive.spec.ts`.
 
 ## Checks
 
-Each phase ends with `pnpm lint`, `pnpm typecheck` and `pnpm test` green.
+Every change ends with `pnpm lint`, `pnpm typecheck` and `pnpm test` green; run `pnpm test:e2e`
+after UI changes.

@@ -111,7 +111,7 @@ Rows marked **(changed)** differ from the old app on purpose.
 | Profiles          | Admin manages all. A user edits only their own name/username/position/section, never role or active flag.                                    |
 | Deactivation      | An inactive user cannot sign in, and their existing sessions are revoked immediately.                                                        |
 | Conflict check    | Overlap = `other.start <= end AND other.end >= start`, excluding REJECTED/CANCELLED and the activity itself when editing. Buckets: `date` (all overlapping), `participants`, `lgus`, `facilities` (overlapping **and** sharing one), `holidays`. An unselected bucket returns `[]`, not a query. UI groups into "clashes" (shares something) vs "same time only" + holidays; submit asks to confirm only when anything was found. A warning, never a block. |
-| Public calendar **(changed)** | Guests see APPROVED + PENDING only, activities **overlapping** the window. Scope: my section / my division / everyone (remembered per browser; guests = everyone). Holidays drawn as background. Clicking an activity shows a **popover** (title, time, venue, status, section). For guests, the detail page needs sign-in. |
+| Public calendar **(changed)** | Guests see APPROVED + PENDING only, activities **overlapping** the window. Scope: my section / my division / everyone (remembered per browser; guests = everyone). Holidays drawn as background. Clicking an activity shows a **summary dialog** (title, time, venue, status, section, type). For guests, the detail page needs sign-in. |
 | Notifications **(changed)** | Derived, not stored, newer than `user.notificationsSeenAt`, never your own actions. **Creators** see status changes and comments by others on activities they created. **Reviewers** (manager/admin) also see: new submissions, resubmissions (any → PENDING), cancellations and comments on PENDING activities. If one item qualifies twice, it appears once. Bell polls the unread count every 60s and on tab focus. Opening it marks all seen but keeps highlighting what was new at open time. |
 | Audit log **(new)** | Every write (activities, status changes, comments, profiles, reference data) and auth event (sign-in success/failure, sign-out, sign-up, own password change, admin password reset) appends an `AuditLog` row. Data writes add it in the **same transaction**. It stores a field diff (before → after; pivots as id lists) and never passwords, hashes or tokens. Admin-only. |
 | Holidays          | Snapped to whole days in `APP_TIMEZONE`; end may not precede start.                                                                          |
@@ -155,7 +155,39 @@ Rows marked **(changed)** differ from the old app on purpose.
 12. `REJECTED` is final (it was editable before).
 13. Audit log for every write and auth event.
 14. Reviewers are notified (moved in from _Later_), and creators are notified of comments.
-15. Guests no longer open full activity pages; they get a calendar popover.
+15. Guests no longer open full activity pages; they get a calendar summary dialog.
+
+### Parity check (Phase 9)
+
+Each business rule above, where it is enforced and what proves it. `unit` = `tests/unit/`,
+`action` = `tests/actions/`, `e2e` = `e2e/`.
+
+| Rule | Enforced in | Covered by |
+| ---- | ----------- | ---------- |
+| ✅ Lifecycle | `lib/rules.ts`, `changeStatus` | unit `rules` (transition matrix); e2e `activity-lifecycle` |
+| ✅ Edit re-pends | `statusAfterEdit` in `updateActivity` | unit `rules`; action `activities` (staff re-pends, admin keeps); e2e step 3 |
+| ✅ History | `ActivityEvent` in the same transaction as each change | action `activities` (event + audit row together) |
+| ✅ Reasons | `statusChangeSchema` | action `activities`; e2e cancel step |
+| ✅ Edit | `canEdit` | unit `rules`; action `activities` (rejected, cancelled, others' refused) |
+| ✅ Review | `canReview`, `changeStatus` message | unit `rules`; action `activities` ("Only a pending activity…") |
+| ✅ Cancel | `canCancel` | unit `rules` (creator vs admin, per status) |
+| ✅ Status via edit | `activitySchema` has no status; `statusAfterEdit` | action `activities` |
+| ✅ Dates (past allowed) | no minimum in `activitySchema` | action `activities` (a 2020 activity is accepted) |
+| ✅ Section | form default; active check in `createActivity` / `updateActivity` | action `activities` (inactive refused, kept one allowed) |
+| ✅ Comments | `actions/comments.ts` | action `activities` (author-only edit/delete) |
+| ✅ Profiles | `actions/profiles.ts` | action `profiles` (admin vs self, role/active ignored for self) |
+| ✅ Deactivation | `session.create.before` hook, `getOptionalUser` | action `auth`, `profiles` (sessions end at once) |
+| ✅ Conflict check | `checkConflicts`, `groupConflicts` | unit `conflicts`; action `activities` |
+| ✅ Public calendar | `getCalendarRange`, `CALENDAR_STATUSES` | action `calendar`; e2e guest step |
+| ✅ Notifications | `actions/notifications.ts` | action `notifications` (roles, own excluded, dedupe, seen cut-off); e2e step 2 |
+| ✅ Audit log | `audit(tx, …)` in every write; auth hooks | action tests assert audit rows per write and auth event |
+| ✅ Holidays | `actions/holidays.ts` | action `reference` (whole Manila days, order, delete) |
+| ✅ Activity search | `activityWhere`, `activityOrder` | action `activity-list` |
+| ✅ CSV export | `exportActivities` | action `activity-list` (BOM added client-side, see `export-button.tsx`) |
+| ✅ Validation | `schemas/` | action `auth`, `profiles`, `reference`, `activities` (per-field errors) |
+
+Every route in the screens table exists, and each is opened by the e2e accessibility and
+responsive checks as the role that can see it.
 
 ---
 
@@ -398,7 +430,7 @@ Each phase ends runnable, with `pnpm biome check`, `pnpm tsc --noEmit` and `pnpm
 ### Phase 7 — Public calendar
 - schedule-x month grid + agenda (phone), `APP_TIMEZONE`, statuses as calendars, holidays as
   background events, scope selector (remembered in localStorage), type/status filters.
-- Click → popover; "Open" link to the detail page for signed-in users, "Sign in to see more" for guests.
+- Click → summary dialog (a popover would nest a button in schedule-x's own event button); "Open" link to the detail page for signed-in users, "Sign in to see more" for guests.
 
 ### Phase 8 — Notifications and audit screen
 - Bell: unread count (60s poll + on focus), list on open, mark seen, keep "new" dots for the open
@@ -411,7 +443,7 @@ Each phase ends runnable, with `pnpm biome check`, `pnpm tsc --noEmit` and `pnpm
 ### Phase 9 — Hardening
 - Playwright flows: sign-in; submit an activity; manager approves; staff edits the approved
   activity → back to pending; manager returns → owner edits → resubmitted; owner cancels with
-  reason; guest views the public calendar and gets the popover only.
+  reason; guest views the public calendar and gets the summary only.
 - Accessibility pass (keyboard, focus, labels), responsive pass (desktop first, then tablet/phone).
 - `README.md`, `CLAUDE.md` finished; parity checklist (section 2) ticked off against the old app.
 
@@ -423,7 +455,7 @@ Each phase ends runnable, with `pnpm biome check`, `pnpm tsc --noEmit` and `pnpm
 | -------------- | ----------- | ---------------------------------------------------------------------------------------- |
 | Rules          | Vitest      | `rules.ts`, `dates.ts`, `conflicts.ts`, `diff` — pure, no DB, full coverage              |
 | Server actions | Vitest      | Called directly as async functions against `activity_tracker_test`. `requireUser` is mocked to return an admin / manager / staff fixture; `next/cache` is mocked. Covers validation, permissions, transactions, history and audit rows, pivot replacement, notification queries. Tables truncated between files; files run serially. |
-| Flows          | Playwright  | The flows in Phase 9, against `pnpm dev` with a seeded test DB                           |
+| Flows          | Playwright  | The flows in Phase 9 plus axe-core (WCAG 2.1 AA, light and dark) and a phone-width overflow check, against a production build on port 3100 with a freshly seeded test DB |
 
 Server components are covered by Playwright, not unit tests.
 

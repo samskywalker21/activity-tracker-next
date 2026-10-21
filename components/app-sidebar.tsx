@@ -100,7 +100,7 @@ export function AppSidebar({ role, reviewCount }: { role: Role; reviewCount: num
         {groups.map((group) => (
           <SidebarGroup key={group.label ?? 'main'}>
             {group.label && (
-              <SidebarGroupLabel className="text-sidebar-foreground/60 uppercase tracking-wider">
+              <SidebarGroupLabel className="text-sidebar-foreground/80 uppercase tracking-wider">
                 {group.label}
               </SidebarGroupLabel>
             )}

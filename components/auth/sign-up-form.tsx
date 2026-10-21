@@ -75,7 +75,9 @@ export function SignUpForm({ sections }: { sections: Section[] }) {
   return (
     <Card className="w-full max-w-md">
       <CardHeader>
-        <CardTitle>Create an account</CardTitle>
+        <CardTitle>
+          <h1>Create an account</h1>
+        </CardTitle>
         <CardDescription>Your account can be used right away.</CardDescription>
       </CardHeader>
       <CardContent>

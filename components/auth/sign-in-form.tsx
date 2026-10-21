@@ -32,7 +32,9 @@ export function SignInForm() {
   return (
     <Card className="w-full max-w-sm">
       <CardHeader>
-        <CardTitle>Sign in</CardTitle>
+        <CardTitle>
+          <h1>Sign in</h1>
+        </CardTitle>
         <CardDescription>Use your Activity Tracker username and password.</CardDescription>
       </CardHeader>
       <CardContent>

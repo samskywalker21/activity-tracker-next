@@ -117,6 +117,33 @@ describe('createActivity', () => {
     const result = await createActivity(form({ endTime: '08:00' }))
     expect(result).toMatchObject({ ok: false, fieldErrors: { endDate: expect.any(Array) } })
   })
+
+  test('past dates are allowed: activities are often logged after the fact', async () => {
+    await signInAs('staff')
+    const result = await createActivity(form({ startDate: '2020-01-06', endDate: '2020-01-06' }))
+    expect(result.ok).toBe(true)
+  })
+
+  test('an inactive section is refused; an activity may keep one it already has', async () => {
+    await signInAs('staff')
+    const created = await createActivity(form())
+    if (!created.ok) throw new Error(created.error)
+    const closed = await createSection('OLD')
+    await db.section.update({ where: { id: closed.id }, data: { isActive: false } })
+
+    expect(await createActivity(form({ sectionId: closed.id }))).toMatchObject({
+      ok: false,
+      fieldErrors: { sectionId: ['Choose a section'] },
+    })
+    expect(await updateActivity(created.data.id, form({ sectionId: closed.id }))).toMatchObject({
+      ok: false,
+    })
+
+    await db.activity.update({ where: { id: created.data.id }, data: { sectionId: closed.id } })
+    expect(await updateActivity(created.data.id, form({ sectionId: closed.id }))).toMatchObject({
+      ok: true,
+    })
+  })
 })
 
 describe('updateActivity', () => {

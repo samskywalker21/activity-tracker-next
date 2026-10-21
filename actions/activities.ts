@@ -38,6 +38,17 @@ function activityData(input: ActivityInput) {
   }
 }
 
+const noSection: Extract<ActionResult, { ok: false }> = {
+  ok: false,
+  error: 'Please correct the highlighted fields',
+  fieldErrors: { sectionId: ['Choose a section'] },
+}
+
+async function sectionIsActive(sectionId: number) {
+  const section = await db.section.findUnique({ where: { id: sectionId } })
+  return section?.isActive === true
+}
+
 const pivotIds = {
   participants: { select: { id: true } },
   lgus: { select: { id: true } },
@@ -48,6 +59,7 @@ export async function createActivity(input: unknown): Promise<ActionResult<{ id:
   const user = await requireUser()
   const parsed = activitySchema.safeParse(input)
   if (!parsed.success) return validationFailed(parsed.error)
+  if (!(await sectionIsActive(parsed.data.sectionId))) return noSection
 
   const { participantIds, lguIds, facilityIds } = parsed.data
   const data = activityData(parsed.data)
@@ -86,6 +98,13 @@ export async function updateActivity(id: number, input: unknown): Promise<Action
   const activity = await db.activity.findUnique({ where: { id }, include: pivotIds })
   if (!activity) return { ok: false, error: 'Activity not found' }
   if (!canEdit(user, activity)) return { ok: false, error: 'You cannot edit this activity' }
+  // Keeping a section that has since been deactivated is fine; moving to one is not.
+  if (
+    parsed.data.sectionId !== activity.sectionId &&
+    !(await sectionIsActive(parsed.data.sectionId))
+  ) {
+    return noSection
+  }
 
   const { participantIds, lguIds, facilityIds } = parsed.data
   const data = { ...activityData(parsed.data), status: statusAfterEdit(user, activity) }
