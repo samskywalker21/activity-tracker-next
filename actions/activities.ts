@@ -8,6 +8,7 @@ import { audit, diff } from '@/lib/audit'
 import type { Conflicts } from '@/lib/conflicts'
 import { formatDay, formatTime } from '@/lib/dates'
 import { db } from '@/lib/db'
+import { findConflicts } from '@/lib/find-conflicts'
 import { allowedTransitions, canEdit, REVIEW_DECISIONS, statusAfterEdit } from '@/lib/rules'
 import { requireUser } from '@/lib/session'
 import { statusLabels, typeLabels } from '@/lib/status'
@@ -196,45 +197,13 @@ export async function changeStatus(id: number, input: unknown): Promise<ActionRe
   return { ok: true, data: undefined }
 }
 
-/**
- * What overlaps the range being filled in: a warning for the form, never a block. A bucket whose
- * selection is empty is `[]` without a query, so "nothing selected" is not "no clash".
- */
+/** The form's live conflict check: a warning, never a block. */
 export async function checkConflicts(input: unknown): Promise<ActionResult<Conflicts>> {
   await requireUser()
   const parsed = conflictCheckSchema.safeParse(input)
   if (!parsed.success) return validationFailed(parsed.error)
 
-  const { id, participantIds, lguIds, facilityIds } = parsed.data
-  const { start, end } = rangeToDates(parsed.data)
-
-  const overlapping: Prisma.ActivityWhereInput = {
-    start: { lte: end },
-    end: { gte: start },
-    // Rejected and cancelled activities are not going to happen, so they cannot clash.
-    status: { notIn: ['REJECTED', 'CANCELLED'] },
-    ...(id !== undefined && { id: { not: id } }),
-  }
-  const find = (shared?: Prisma.ActivityWhereInput) =>
-    db.activity.findMany({
-      where: { ...overlapping, ...shared },
-      select: { id: true, title: true, start: true, end: true, allDay: true, status: true },
-      orderBy: { start: 'asc' },
-    })
-
-  const [date, participants, lgus, facilities, holidays] = await Promise.all([
-    find(),
-    participantIds.length ? find({ participants: { some: { id: { in: participantIds } } } }) : [],
-    lguIds.length ? find({ lgus: { some: { id: { in: lguIds } } } }) : [],
-    facilityIds.length ? find({ facilities: { some: { id: { in: facilityIds } } } }) : [],
-    db.holiday.findMany({
-      where: { start: { lte: end }, end: { gte: start } },
-      select: { id: true, name: true, start: true, end: true },
-      orderBy: { start: 'asc' },
-    }),
-  ])
-
-  return { ok: true, data: { date, participants, lgus, facilities, holidays } }
+  return { ok: true, data: await findConflicts({ ...parsed.data, ...rangeToDates(parsed.data) }) }
 }
 
 /** RFC 4180: quote every field, double any quote inside it. */

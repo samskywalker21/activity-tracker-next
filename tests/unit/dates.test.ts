@@ -1,11 +1,13 @@
 import { describe, expect, test } from 'vitest'
 import {
   APP_TIMEZONE,
+  countDays,
   dayBounds,
   formatDateTime,
   formatDay,
   formatRange,
   formatTime,
+  fromNow,
   parseDateTime,
   parseDay,
 } from '@/lib/dates'
@@ -94,5 +96,31 @@ describe('parseDay / formatDay', () => {
   test('formatDay reads the Manila day, not the UTC one', () => {
     expect(formatDay(new Date('2026-10-21T16:00:00Z'))).toBe('2026-10-22')
     expect(formatDay(new Date('2026-10-22T15:59:59Z'))).toBe('2026-10-22')
+  })
+})
+
+describe('countDays / fromNow', () => {
+  const at = (iso: string) => new Date(`${iso}+08:00`)
+  // 07:00 in Manila is still Oct 20 in UTC, so a UTC reading would be a day off.
+  const now = at('2026-10-21T07:00')
+
+  test('counts Manila days, not 24-hour periods', () => {
+    expect(countDays(at('2026-10-27T13:00'), at('2026-10-27T17:00'))).toBe(1)
+    expect(countDays(at('2026-10-26T23:00'), at('2026-10-27T01:00'))).toBe(2)
+    expect(countDays(at('2026-11-09T00:00'), at('2026-11-11T23:59'))).toBe(3)
+  })
+
+  test('ahead of now', () => {
+    expect(fromNow(at('2026-11-09T00:00'), at('2026-11-11T23:59'), now)).toBe('in 19 days')
+    expect(fromNow(at('2026-10-22T08:00'), at('2026-10-22T17:00'), now)).toBe('tomorrow')
+    expect(fromNow(at('2026-10-21T08:00'), at('2026-10-21T17:00'), now)).toBe('later today')
+  })
+
+  test('under way or behind now', () => {
+    expect(fromNow(at('2026-10-20T08:00'), at('2026-10-23T17:00'), now)).toBe('ongoing')
+    expect(fromNow(at('2026-10-21T06:00'), at('2026-10-21T08:00'), now)).toBe('ongoing')
+    expect(fromNow(at('2026-10-19T08:00'), at('2026-10-21T06:00'), now)).toBe('ended today')
+    expect(fromNow(at('2026-10-20T08:00'), at('2026-10-20T17:00'), now)).toBe('yesterday')
+    expect(fromNow(at('2026-10-02T08:00'), at('2026-10-05T17:00'), now)).toBe('16 days ago')
   })
 })

@@ -1,9 +1,22 @@
+import Link from 'next/link'
 import { StatusBadge } from '@/components/status-badge'
 import { type GroupedConflicts, sharedLabels } from '@/lib/conflicts'
 import { formatDays, formatRange } from '@/lib/dates'
 
-/** The grouped conflict check: clashes first, then same-time-only activities, then holidays. */
-export function ConflictList({ grouped }: { grouped: GroupedConflicts }) {
+/**
+ * The grouped conflict check: clashes first, then same-time-only activities, then holidays.
+ * `linked` makes the titles links, for pages without unsaved input to lose.
+ */
+export function ConflictList({ grouped, linked }: { grouped: GroupedConflicts; linked?: boolean }) {
+  const title = (row: { id: number; title: string }) =>
+    linked ? (
+      <Link href={`/activities/${row.id}`} className="underline-offset-4 hover:underline">
+        {row.title}
+      </Link>
+    ) : (
+      row.title
+    )
+
   return (
     <div className="grid gap-4 text-sm">
       {grouped.clashes.length > 0 && (
@@ -13,7 +26,7 @@ export function ConflictList({ grouped }: { grouped: GroupedConflicts }) {
             {grouped.clashes.map((row) => (
               <li key={row.id} className="grid gap-0.5">
                 <span className="flex items-center justify-between gap-2 font-medium">
-                  {row.title}
+                  {title(row)}
                   <StatusBadge status={row.status} />
                 </span>
                 <span className="text-muted-foreground">
@@ -31,7 +44,7 @@ export function ConflictList({ grouped }: { grouped: GroupedConflicts }) {
           <ul className="grid gap-2">
             {grouped.sameTime.map((row) => (
               <li key={row.id} className="grid gap-0.5">
-                <span className="font-medium">{row.title}</span>
+                <span className="font-medium">{title(row)}</span>
                 <span className="text-muted-foreground">
                   {formatRange(row.start, row.end, row.allDay)}
                 </span>

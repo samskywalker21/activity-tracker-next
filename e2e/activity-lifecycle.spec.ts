@@ -1,5 +1,5 @@
 import { expect, type Page, test } from '@playwright/test'
-import { changeStatus, expectAccessible, signIn } from './helpers'
+import { expectAccessible, review, signIn } from './helpers'
 
 // One activity through its whole life, each step as the person who would take it. The steps
 // depend on each other, so they run in order and stop at the first failure.
@@ -39,7 +39,8 @@ test('staff submits an activity', async ({ page }) => {
 test('the manager approves it, and staff is notified', async ({ page, browser }) => {
   await signIn(page, 'manager')
   await page.goto(url)
-  await changeStatus(page, 'Approve')
+  await expectAccessible(page)
+  await review(page, 'Approve')
   await expectStatus(page, 'Approved')
 
   const staff = await browser.newPage()
@@ -67,7 +68,7 @@ test('staff edits the approved activity, which sends it back for review', async 
 test('the manager returns it with a reason', async ({ page }) => {
   await signIn(page, 'manager')
   await page.goto(url)
-  await changeStatus(page, 'Return for changes', 'Please add the agenda.')
+  await review(page, 'Return', 'Please add the agenda.')
   await expectStatus(page, 'Returned')
 })
 
@@ -103,7 +104,7 @@ test('staff cancels it, which needs a reason', async ({ page }) => {
   await signIn(page, 'staff')
   await page.goto(url)
 
-  await page.getByRole('button', { name: 'Change status' }).click()
+  await page.getByRole('button', { name: 'Cancel activity' }).click()
   await page.getByRole('dialog').getByRole('button', { name: 'Cancel the activity' }).click()
   await expect(page.getByText('Give a reason')).toBeVisible()
   await page.getByLabel('Reason').fill('The venue is unavailable.')

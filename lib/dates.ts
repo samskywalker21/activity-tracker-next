@@ -1,5 +1,13 @@
 import { TZDate } from '@date-fns/tz'
-import { endOfDay, format, isSameDay, isSameMonth, isSameYear, startOfDay } from 'date-fns'
+import {
+  differenceInCalendarDays,
+  endOfDay,
+  format,
+  isSameDay,
+  isSameMonth,
+  isSameYear,
+  startOfDay,
+} from 'date-fns'
 
 // One zone for server and calendar alike; dates are stored as timestamptz (UTC instants).
 export const APP_TIMEZONE = process.env.APP_TIMEZONE ?? 'Asia/Manila'
@@ -31,14 +39,35 @@ export function formatRange(start: Date, end: Date, allDay: boolean) {
   const s = zoned(start)
   const e = zoned(end)
 
-  if (isSameDay(s, e)) {
-    const times =
-      format(s, 'a') === format(e, 'a')
-        ? `${format(s, 'h:mm')}–${format(e, 'h:mm a')}`
-        : `${format(s, 'h:mm a')} – ${format(e, 'h:mm a')}`
-    return `${format(s, 'MMM d, yyyy')} · ${times}`
-  }
+  if (isSameDay(s, e)) return `${format(s, 'MMM d, yyyy')} · ${formatTimes(start, end)}`
   return `${format(s, 'MMM d, yyyy, h:mm a')} – ${format(e, 'MMM d, yyyy, h:mm a')}`
+}
+
+/** The wall-clock times of a range in APP_TIMEZONE, e.g. "1:00–5:00 PM", "11:00 AM – 1:00 PM". */
+export function formatTimes(start: Date, end: Date) {
+  const s = zoned(start)
+  const e = zoned(end)
+  return format(s, 'a') === format(e, 'a')
+    ? `${format(s, 'h:mm')}–${format(e, 'h:mm a')}`
+    : `${format(s, 'h:mm a')} – ${format(e, 'h:mm a')}`
+}
+
+/** How many days a range touches in APP_TIMEZONE; 1 for a same-day range. */
+export function countDays(start: Date, end: Date) {
+  return differenceInCalendarDays(zoned(end), zoned(start)) + 1
+}
+
+/** Where a range sits relative to `now`, in whole days in APP_TIMEZONE: "in 3 days", "ongoing". */
+export function fromNow(start: Date, end: Date, now = new Date()) {
+  const untilStart = differenceInCalendarDays(zoned(start), zoned(now))
+  const sinceEnd = differenceInCalendarDays(zoned(now), zoned(end))
+  if (untilStart > 1) return `in ${untilStart} days`
+  if (untilStart === 1) return 'tomorrow'
+  if (now < start) return 'later today'
+  if (now <= end) return 'ongoing'
+  if (sinceEnd === 0) return 'ended today'
+  if (sinceEnd === 1) return 'yesterday'
+  return `${sinceEnd} days ago`
 }
 
 /** A `yyyy-MM-dd` day in APP_TIMEZONE, as the instant it starts. Used by date-only fields. */

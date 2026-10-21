@@ -31,28 +31,19 @@ export type CommentRow = {
   edited: boolean
 }
 
-export function Comments({ activityId, comments }: { activityId: number; comments: CommentRow[] }) {
+/** The box under the timeline for a new comment. */
+export function NewComment({ activityId }: { activityId: number }) {
   return (
-    <div className="grid gap-6">
-      {comments.length === 0 ? (
-        <p className="text-muted-foreground text-sm">No comments yet.</p>
-      ) : (
-        <ul className="grid gap-4">
-          {comments.map((comment) => (
-            <CommentItem key={comment.id} comment={comment} />
-          ))}
-        </ul>
-      )}
-      <CommentForm
-        submitLabel="Comment"
-        action={(values) => addComment(activityId, values)}
-        resetOnSave
-      />
-    </div>
+    <CommentForm
+      submitLabel="Comment"
+      action={(values) => addComment(activityId, values)}
+      resetOnSave
+    />
   )
 }
 
-function CommentItem({ comment }: { comment: CommentRow }) {
+/** A comment's part of a timeline entry; its author can edit or delete it in place. */
+export function CommentItem({ comment }: { comment: CommentRow }) {
   const [editing, setEditing] = useState(false)
   const [pending, startTransition] = useTransition()
 
@@ -65,11 +56,14 @@ function CommentItem({ comment }: { comment: CommentRow }) {
   }
 
   return (
-    <li className="grid gap-1 rounded-lg border p-3">
-      <p className="text-muted-foreground text-xs">
-        <span className="font-medium text-foreground">{comment.author}</span> · {comment.postedAt}
-        {comment.edited && ' · edited'}
-      </p>
+    <div className="grid gap-1.5">
+      <div>
+        <p>
+          <span className="font-semibold">{comment.author}</span> commented
+          {comment.edited && <span className="text-muted-foreground"> · edited</span>}
+        </p>
+        <p className="text-muted-foreground text-xs">{comment.postedAt}</p>
+      </div>
       {editing ? (
         <CommentForm
           defaultBody={comment.body}
@@ -78,7 +72,7 @@ function CommentItem({ comment }: { comment: CommentRow }) {
           onDone={() => setEditing(false)}
         />
       ) : (
-        <p className="whitespace-pre-wrap text-sm">{comment.body}</p>
+        <p className="whitespace-pre-wrap rounded-md border bg-muted px-2.5 py-2">{comment.body}</p>
       )}
       {comment.mine && !editing && (
         <div className="flex gap-1">
@@ -104,7 +98,7 @@ function CommentItem({ comment }: { comment: CommentRow }) {
           </AlertDialog>
         </div>
       )}
-    </li>
+    </div>
   )
 }
 

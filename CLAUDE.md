@@ -80,7 +80,7 @@ Formatting is Biome: no semicolons, single quotes, width 100. Run `pnpm format`.
   mock to reach it.
 - Playwright (`e2e/`) builds and serves the app on port 3100 against the test database, reseeded
   by `e2e/seed.ts` (users `admin`, `manager`, `staff`; password = username). `signIn()`,
-  `changeStatus()` and `expectAccessible()` (axe-core, WCAG 2.1 AA) are in `e2e/helpers.ts`. A new
+  `review()` and `expectAccessible()` (axe-core, WCAG 2.1 AA) are in `e2e/helpers.ts`. A new
   screen goes into `accessibility.spec.ts` and `responsive.spec.ts`.
 
 ## Checks

@@ -412,9 +412,13 @@ Each phase ends runnable, with `pnpm biome check`, `pnpm tsc --noEmit` and `pnpm
   own) / participant / LGU / facility pickers, overflow text fields, live debounced conflict check,
   confirm-on-conflict. When a non-admin edits an APPROVED activity, the form warns that saving
   sends it back for review.
-- `/activities/[id]`: details, status alert with reason, tabs (participants, LGUs, facilities,
-  history, comments), and only the actions `rules.ts` allows.
-- Status change dialog (approve / return / reject / cancel, reason required where needed).
+- `/activities/[id]` (redesigned after Phase 9, no tabs): a header with status, type, section and
+  When / Where / Owner; the status alert with reason; conflicts that share people or places (and
+  holidays); details; "Who and where" as rows of chips, grouped DOH / partners and by province;
+  a side column with the review panel and one timeline of status changes and comments. Only the
+  actions `rules.ts` allows.
+- Reviewers approve / return / reject from the review panel; the creator (or an admin) cancels
+  from a dialog. Return, reject and cancel need a reason.
 - Comments: add, edit own, delete own.
 - Tests: every transition in the rules table (allowed and refused, per role), approved-edit
   re-pend (staff) vs stays approved (admin), REJECTED not editable, event + audit rows written in

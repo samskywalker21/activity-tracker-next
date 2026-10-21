@@ -2,7 +2,7 @@
 
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useState, useTransition } from 'react'
-import { Controller, type FieldPath, useForm, useWatch } from 'react-hook-form'
+import { Controller, type FieldPath, useForm } from 'react-hook-form'
 import { toast } from 'sonner'
 import { changeStatus } from '@/actions/activities'
 import { Alert, AlertDescription } from '@/components/ui/alert'
@@ -11,42 +11,32 @@ import {
   Dialog,
   DialogClose,
   DialogContent,
+  DialogDescription,
   DialogFooter,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
 } from '@/components/ui/dialog'
 import { Field, FieldError, FieldGroup, FieldLabel } from '@/components/ui/field'
-import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
 import { Textarea } from '@/components/ui/textarea'
-import type { ActivityStatus } from '@/generated/prisma/enums'
-import { NOTE_REQUIRED } from '@/lib/rules'
 import { type StatusChangeInput, statusChangeSchema } from '@/schemas/activities'
 
-const decisionLabels: Partial<Record<ActivityStatus, string>> = {
-  APPROVED: 'Approve',
-  RETURNED: 'Return for changes',
-  REJECTED: 'Reject',
-  CANCELLED: 'Cancel the activity',
-}
-
-/** Approve, return, reject or cancel; `allowed` comes from `allowedTransitions`. */
-export function StatusDialog({ id, allowed }: { id: number; allowed: ActivityStatus[] }) {
+/** Cancels the activity, with the reason `canCancel` requires. */
+export function CancelDialog({ id }: { id: number }) {
   const [open, setOpen] = useState(false)
   const [error, setError] = useState<string>()
   const [pending, startTransition] = useTransition()
   const form = useForm<StatusChangeInput>({
     resolver: zodResolver(statusChangeSchema),
-    defaultValues: { status: allowed[0] as StatusChangeInput['status'], note: '' },
+    defaultValues: { status: 'CANCELLED', note: '' },
   })
-  const status = useWatch({ control: form.control, name: 'status' })
 
   function onSubmit(values: StatusChangeInput) {
     setError(undefined)
     startTransition(async () => {
       const result = await changeStatus(id, values)
       if (result.ok) {
-        toast.success('Status changed')
+        toast.success('Activity cancelled')
         setOpen(false)
         form.reset()
         return
@@ -62,10 +52,11 @@ export function StatusDialog({ id, allowed }: { id: number; allowed: ActivitySta
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger render={<Button variant="outline" />}>Change status</DialogTrigger>
+      <DialogTrigger render={<Button variant="destructive" />}>Cancel activity</DialogTrigger>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Change status</DialogTitle>
+          <DialogTitle>Cancel this activity?</DialogTitle>
+          <DialogDescription>It can no longer be edited or reviewed afterwards.</DialogDescription>
         </DialogHeader>
         <form onSubmit={form.handleSubmit(onSubmit)} noValidate className="grid gap-4">
           <FieldGroup>
@@ -75,37 +66,26 @@ export function StatusDialog({ id, allowed }: { id: number; allowed: ActivitySta
               </Alert>
             )}
             <Controller
-              name="status"
-              control={form.control}
-              render={({ field }) => (
-                <RadioGroup value={field.value} onValueChange={field.onChange}>
-                  {allowed.map((value) => (
-                    <Field key={value} orientation="horizontal">
-                      <RadioGroupItem id={`status-${value}`} value={value} />
-                      <FieldLabel htmlFor={`status-${value}`}>{decisionLabels[value]}</FieldLabel>
-                    </Field>
-                  ))}
-                </RadioGroup>
-              )}
-            />
-            <Controller
               name="note"
               control={form.control}
               render={({ field, fieldState }) => (
                 <Field data-invalid={fieldState.invalid}>
-                  <FieldLabel htmlFor="note">
-                    {NOTE_REQUIRED.includes(status) ? 'Reason' : 'Note (optional)'}
-                  </FieldLabel>
-                  <Textarea {...field} id="note" rows={4} aria-invalid={fieldState.invalid} />
+                  <FieldLabel htmlFor="cancel-note">Reason</FieldLabel>
+                  <Textarea
+                    {...field}
+                    id="cancel-note"
+                    rows={4}
+                    aria-invalid={fieldState.invalid}
+                  />
                   <FieldError errors={[fieldState.error]} />
                 </Field>
               )}
             />
           </FieldGroup>
           <DialogFooter>
-            <DialogClose render={<Button variant="outline" />}>Close</DialogClose>
-            <Button type="submit" disabled={pending}>
-              {pending ? 'Saving…' : decisionLabels[status]}
+            <DialogClose render={<Button variant="outline" />}>Keep it</DialogClose>
+            <Button type="submit" variant="destructive" disabled={pending}>
+              {pending ? 'Saving…' : 'Cancel the activity'}
             </Button>
           </DialogFooter>
         </form>

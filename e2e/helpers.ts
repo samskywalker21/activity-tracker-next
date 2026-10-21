@@ -10,13 +10,11 @@ export async function signIn(page: Page, username: string) {
   await expect(page).toHaveURL('/')
 }
 
-/** Picks a decision in the status dialog, gives the reason, and confirms. */
-export async function changeStatus(page: Page, decision: string, reason?: string) {
-  await page.getByRole('button', { name: 'Change status' }).click()
-  await page.getByRole('radio', { name: decision }).click()
-  if (reason) await page.getByLabel('Reason').fill(reason)
-  await page.getByRole('dialog').getByRole('button', { name: decision }).click()
-  await expect(page.getByRole('dialog')).toBeHidden()
+/** Decides from the activity page's review panel, with the note a return or reject needs. */
+export async function review(page: Page, decision: 'Approve' | 'Return' | 'Reject', note?: string) {
+  if (note) await page.getByLabel(/^Note/).fill(note)
+  await page.getByRole('button', { name: decision, exact: true }).click()
+  await expect(page.getByText('Waiting for your review')).toBeHidden()
 }
 
 /** Fails with axe-core's WCAG 2.1 A/AA violations on the current page, once it has settled. */
