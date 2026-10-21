@@ -6,9 +6,11 @@ import { redirect } from 'next/navigation'
 import { type ActionResult, validationFailed } from '@/lib/action-result'
 import { auth, placeholderEmail } from '@/lib/auth'
 import { db } from '@/lib/db'
+import { safeNextPath } from '@/lib/next-path'
 import { signInSchema, signUpSchema } from '@/schemas/auth'
 
-export async function signIn(input: unknown): Promise<ActionResult> {
+// signIn and signUp redirect on success to `next` when it is a path on this site, else to `/`.
+export async function signIn(input: unknown, next?: string): Promise<ActionResult> {
   const parsed = signInSchema.safeParse(input)
   if (!parsed.success) return validationFailed(parsed.error)
 
@@ -19,10 +21,10 @@ export async function signIn(input: unknown): Promise<ActionResult> {
     throw error
   }
 
-  redirect('/')
+  redirect(safeNextPath(next))
 }
 
-export async function signUp(input: unknown): Promise<ActionResult> {
+export async function signUp(input: unknown, next?: string): Promise<ActionResult> {
   const parsed = signUpSchema.safeParse(input)
   if (!parsed.success) return validationFailed(parsed.error)
   const { confirmPassword: _, middleName, ...data } = parsed.data
@@ -55,7 +57,7 @@ export async function signUp(input: unknown): Promise<ActionResult> {
     throw error
   }
 
-  redirect('/')
+  redirect(safeNextPath(next))
 }
 
 export async function signOut() {

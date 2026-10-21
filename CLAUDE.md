@@ -59,6 +59,9 @@ Formatting is Biome: no semicolons, single quotes, width 100. Run `pnpm format`.
 - `autoSignIn` is off: sign-up creates no session. The `signUp` action calls `signInUsername`
   itself. With it off, Better Auth answers a duplicate *email* with a fake success; we never hit
   that because the username plugin refuses a taken username first (emails derive from usernames).
+- `proxy.ts` sends guests to `/sign-in?next=<path>`; the auth pages and the `signIn` / `signUp`
+  actions return there, but only through `safeNextPath()` (`lib/next-path.ts`), which refuses
+  anything that isn't a path on this site.
 - Inactive users are refused in the `session.create.before` database hook, and
   `getOptionalUser()` also ignores sessions of inactive users.
 - Auth audit rows (sign-in success/failure, sign-out, sign-up, own password change) are written

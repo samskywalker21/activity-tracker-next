@@ -38,6 +38,7 @@ import {
 } from '@/components/ui/select'
 import { ActivityType } from '@/generated/prisma/enums'
 import { APP_TIMEZONE } from '@/lib/dates'
+import { authHref } from '@/lib/next-path'
 import { CALENDAR_STATUSES } from '@/lib/rules'
 import { statusLabels, typeLabels } from '@/lib/status'
 
@@ -156,7 +157,10 @@ function ActivitySummary({
                   Open
                 </Button>
               ) : (
-                <Button nativeButton={false} render={<Link href="/sign-in" />}>
+                <Button
+                  nativeButton={false}
+                  render={<Link href={authHref('/sign-in', `/activities/${activity.id}`)} />}
+                >
                   Sign in to see more
                 </Button>
               )}

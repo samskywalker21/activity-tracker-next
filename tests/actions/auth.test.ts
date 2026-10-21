@@ -92,6 +92,13 @@ describe('sign in', () => {
     )
     expect(response.status).toBe(404)
   })
+
+  test('returns to the page asked for, but only one on this site', async () => {
+    const values = { username: 'staff', password: 'secret' }
+    await expect(signIn(values, '/activities?q=x')).rejects.toThrow(/^REDIRECT \/activities\?q=x$/)
+    await expect(signIn(values, '//evil.example')).rejects.toThrow(/^REDIRECT \/$/)
+    await expect(signIn(values, 'https://evil.example')).rejects.toThrow(/^REDIRECT \/$/)
+  })
 })
 
 describe('sign up', () => {

@@ -97,7 +97,7 @@ test('a guest sees it on the calendar, with a summary only', async ({ page }) =>
   await expect(summary.getByRole('button', { name: 'Open' })).toHaveCount(0)
 
   await page.goto(url)
-  await expect(page).toHaveURL(/\/sign-in$/)
+  await expect(page).toHaveURL(`/sign-in?next=${encodeURIComponent(url)}`)
 })
 
 test('staff cancels it, which needs a reason', async ({ page }) => {
